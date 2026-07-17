@@ -83,6 +83,11 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
 
 // Start Server & Connect to Database
 const startServer = async () => {
+  // Start the server first so ECS health checks pass immediately!
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server is running on port ${PORT}`);
+  });
+
   try {
     if (process.env.MONGODB_URI) {
         await mongoose.connect(process.env.MONGODB_URI);
@@ -90,13 +95,9 @@ const startServer = async () => {
     } else {
         console.log('⚠️ MONGODB_URI not found in .env. Skipping DB connection for now.');
     }
-    
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 Server is running on port ${PORT}`);
-    });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    process.exit(1);
+    console.error('❌ Failed to connect to MongoDB:', error.message);
+    // Do NOT exit process. Allow the container to stay alive so we can read logs.
   }
 };
 

@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
 import 'highlight.js/styles/atom-one-dark.css' 
-import { Search, Send, Code2, Bot, User, Loader2, Database, AlertCircle, LogOut, History, MessageSquare } from 'lucide-react'
+import { Search, Send, Code2, Bot, User, Loader2, Database, AlertCircle, LogOut, History, MessageSquare, Trash2 } from 'lucide-react'
 import { AuthContext } from './context/AuthContext'
 import { Navigate } from 'react-router-dom'
 
@@ -71,6 +71,26 @@ function App() {
       }
     } catch (e) {
       console.error("Failed to load session messages", e);
+    }
+  };
+
+  const handleDeleteSession = async (url) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/history/repo?repoUrl=${encodeURIComponent(url)}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        if (repoUrl === url) {
+          setRepoUrl('');
+          setIsReady(false);
+          setChatHistory([]);
+          setAnalysisStatus(null);
+        }
+        fetchHistory();
+      }
+    } catch (e) {
+      console.error("Failed to delete session", e);
     }
   };
 
@@ -172,17 +192,25 @@ function App() {
             <p className="text-slate-500 text-sm text-center mt-4">No history yet.</p>
           ) : (
             savedSessions.map(session => (
-              <button 
-                key={session._id}
-                onClick={() => loadSession(session.repoUrl)}
-                className={`w-full text-left p-3 rounded-xl transition-all flex items-start gap-3 border ${repoUrl === session.repoUrl ? 'bg-indigo-500/20 border-indigo-500/30' : 'bg-white/5 border-transparent hover:bg-white/10'}`}
-              >
-                <MessageSquare className="w-4 h-4 mt-1 text-slate-400 shrink-0" />
-                <div className="overflow-hidden">
-                  <p className="text-sm text-slate-200 truncate">{session.repoUrl.replace('https://github.com/', '')}</p>
-                  <p className="text-xs text-slate-500 mt-1">{new Date(session.updatedAt).toLocaleDateString()}</p>
-                </div>
-              </button>
+              <div key={session._id} className={`w-full group flex items-center justify-between p-3 rounded-xl transition-all border ${repoUrl === session.repoUrl ? 'bg-indigo-500/20 border-indigo-500/30' : 'bg-white/5 border-transparent hover:bg-white/10'}`}>
+                <button 
+                  onClick={() => loadSession(session.repoUrl)}
+                  className="flex-1 text-left flex items-start gap-3 overflow-hidden"
+                >
+                  <MessageSquare className="w-4 h-4 mt-1 text-slate-400 shrink-0" />
+                  <div className="overflow-hidden">
+                    <p className="text-sm text-slate-200 truncate">{session.repoUrl.replace('https://github.com/', '')}</p>
+                    <p className="text-xs text-slate-500 mt-1">{new Date(session.updatedAt).toLocaleDateString()}</p>
+                  </div>
+                </button>
+                <button 
+                  onClick={() => handleDeleteSession(session.repoUrl)}
+                  className="p-2 opacity-0 group-hover:opacity-100 hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 rounded-lg transition-all shrink-0"
+                  title="Delete Session"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             ))
           )}
         </div>

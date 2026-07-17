@@ -33,4 +33,18 @@ router.get('/repo', authMiddleware, async (req, res) => {
   }
 });
 
+// Delete chat history for a specific repository
+router.delete('/repo', authMiddleware, async (req, res) => {
+  const { repoUrl } = req.query;
+  if (!repoUrl) return res.status(400).json({ error: 'repoUrl is required' });
+
+  try {
+    await ChatSession.deleteOne({ userId: req.user.userId, repoUrl });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting repo history:', error);
+    res.status(500).json({ error: 'Failed to delete repository history' });
+  }
+});
+
 export default router;

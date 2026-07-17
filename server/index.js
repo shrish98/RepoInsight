@@ -27,6 +27,11 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'RepoInsight API is running smoothly!' });
 });
 
+// Root Route for AWS Load Balancer Health Checks
+app.get('/', (req, res) => {
+  res.status(200).send('RepoInsight API is running!');
+});
+
 // Route 1: Trigger the RAG Pipeline (The Scout & Harvester)
 app.post('/api/analyze', authMiddleware, async (req, res) => {
     const { repoUrl } = req.body;
@@ -86,11 +91,12 @@ const startServer = async () => {
         console.log('⚠️ MONGODB_URI not found in .env. Skipping DB connection for now.');
     }
     
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Server is running on port ${PORT}`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);
+    process.exit(1);
   }
 };
 

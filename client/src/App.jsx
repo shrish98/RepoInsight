@@ -44,7 +44,7 @@ function App() {
 
   const fetchHistory = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/history', {
+      const res = await fetch('/api/history', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -62,7 +62,7 @@ function App() {
     setAnalysisStatus({ type: 'success', msg: 'Loaded previous session.' });
     
     try {
-      const res = await fetch(`http://localhost:5000/api/history/repo?repoUrl=${encodeURIComponent(url)}`, {
+      const res = await fetch(`/api/history/repo?repoUrl=${encodeURIComponent(url)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -76,7 +76,7 @@ function App() {
 
   const handleDeleteSession = async (url) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/history/repo?repoUrl=${encodeURIComponent(url)}`, {
+      const res = await fetch(`/api/history/repo?repoUrl=${encodeURIComponent(url)}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -105,7 +105,7 @@ function App() {
     setChatHistory([])
 
     try {
-      const response = await fetch('http://localhost:5000/api/analyze', {
+      const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -140,7 +140,7 @@ function App() {
     setIsAsking(true)
 
     try {
-      const response = await fetch('http://localhost:5000/api/chat', {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

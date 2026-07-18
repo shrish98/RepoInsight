@@ -22,7 +22,7 @@ export const AuthProvider = ({ children }) => {
   }, [token]);
 
   const login = async (email, password) => {
-    const res = await fetch('http://localhost:5000/api/auth/login', {
+    const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
@@ -32,13 +32,14 @@ export const AuthProvider = ({ children }) => {
       setToken(data.token);
       setUser(data.user);
       navigate('/');
+      localStorage.setItem('token', data.token);
       return { success: true };
     }
     return { success: false, error: data.error };
   };
 
   const register = async (email, password) => {
-    const res = await fetch('http://localhost:5000/api/auth/register', {
+    const res = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })

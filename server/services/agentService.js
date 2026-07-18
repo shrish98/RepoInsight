@@ -3,15 +3,35 @@ import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import { ChatGroq } from "@langchain/groq";
 import { MongoDBAtlasVectorSearch } from "@langchain/mongodb";
 import mongoose from 'mongoose';
+import { tool } from "@langchain/core/tools";
+import { z } from "zod";
+import { searchGithubIssues } from "./githubService.js";
+import { ToolNode } from "@langchain/langgraph/prebuilt";
 
-// 1. Define the State (The Agent's Memory)
+// 1. Define Tools
+const githubIssuesTool = tool(async ({ query }, config, { configurable }) => {
+    return await searchGithubIssues(configurable.repoUrl, query);
+}, {
+    name: "github_issues_tool",
+    description: "Search for open and closed GitHub issues and pull requests by keywords. Use this if the user asks about bugs, features, PRs, or issues.",
+    schema: z.object({
+        query: z.string().describe("The search query keywords to find issues (e.g. 'authentication', 'bug')."),
+    }),
+});
+
+const tools = [githubIssuesTool];
+const toolNode = new ToolNode(tools);
+
+// 2. Define the State (The Agent's Memory)
 const agentState = {
     question: { value: (x, y) => y ? y : x, default: () => "" },
     repoUrl: { value: (x, y) => y ? y : x, default: () => "" },
     context: { value: (x, y) => y ? y : x, default: () => [] },
     answer: { value: (x, y) => y ? y : x, default: () => "" },
     isGoodAnswer: { value: (x, y) => y !== undefined ? y : x, default: () => false },
-    loopCount: { value: (x, y) => x + (y || 0), default: () => 0 }
+    loopCount: { value: (x, y) => x + (y || 0), default: () => 0 },
+    // Track tool calls and responses
+    messages: { value: (x, y) => x.concat(y), default: () => [] } 
 };
 
 const getVectorStore = () => {
@@ -39,27 +59,41 @@ const retrieveNode = async (state) => {
     return { context: docs };
 };
 
-const generateNode = async (state) => {
-    console.log("--- AGENT: Generating Answer with Groq ---");
+const generateNode = async (state, config) => {
+    console.log("--- AGENT: Generating Answer with Groq (Tools Enabled) ---");
     const llm = new ChatGroq({ apiKey: process.env.GROQ_API_KEY, model: "llama-3.3-70b-versatile", temperature: 0 });
+    
+    // Bind the tools to our LLM
+    const llmWithTools = llm.bindTools(tools);
 
     const formattedContext = state.context.map(doc => 
         `File: ${doc.metadata.source}\nCode:\n${doc.pageContent}`
     ).join("\n\n");
 
-    const prompt = `You are a Senior Software Engineer analyzing a GitHub repository.
+    const systemPrompt = `You are a Senior Software Engineer analyzing a GitHub repository.
 Use the following pieces of retrieved code context to answer the user's question.
-If the answer is not in the context, just say "I don't know based on the provided code." Do not guess.
-
-Question: ${state.question}
+If the answer is not in the code context, you can use the github_issues_tool to search the live repository for open/closed issues and pull requests.
+If you still don't know, just say "I don't know based on the provided code or issues." Do not guess.
 
 Code Context:
-${formattedContext}
+${formattedContext}`;
 
-Answer:`;
+    // Build the conversational payload
+    let llmMessages = [
+        ["system", systemPrompt],
+        ["human", state.question]
+    ];
+    
+    if (state.messages && state.messages.length > 0) {
+        llmMessages = llmMessages.concat(state.messages);
+    }
 
-    const response = await llm.invoke(prompt);
-    return { answer: response.content };
+    const response = await llmWithTools.invoke(llmMessages, config);
+    
+    // Check if the LLM output a final answer (text) rather than calling a tool
+    const textAnswer = response.content ? response.content : "Used a tool...";
+    
+    return { messages: [response], answer: textAnswer };
 };
 
 const evaluateNode = async (state) => {
@@ -89,6 +123,20 @@ Format: [YES/NO] | [New Search Query]`;
     }
 };
 
+// Route condition after generate
+const routeAfterGenerate = (state) => {
+    const lastMessage = state.messages[state.messages.length - 1];
+    
+    // If the LLM returned tool calls, go to the tool execution node
+    if (lastMessage && lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {
+        console.log("--- ROUTING: Tool Call Detected -> Routing to Tools ---");
+        return "tools";
+    }
+    
+    console.log("--- ROUTING: No Tools -> Routing to Evaluator ---");
+    return "evaluate";
+};
+
 const shouldContinue = (state) => {
     if (state.isGoodAnswer || state.loopCount >= 2) {
         console.log("--- ROUTING: Ending Workflow ---");
@@ -103,17 +151,30 @@ export const runAgent = async (userQuestion, repoUrl) => {
     const workflow = new StateGraph({ channels: agentState })
         .addNode("retrieve", retrieveNode)
         .addNode("generate", generateNode)
+        .addNode("tools", toolNode)
         .addNode("evaluate", evaluateNode)
         .addEdge(START, "retrieve")
         .addEdge("retrieve", "generate")
-        .addEdge("generate", "evaluate")
+        .addConditionalEdges("generate", routeAfterGenerate, {
+            "tools": "tools",
+            "evaluate": "evaluate"
+        })
+        .addEdge("tools", "generate") // Loop back to generate after tool execution
         .addConditionalEdges("evaluate", shouldContinue, {
             "retrieve": "retrieve",
             "end": END
         });
 
     const app = workflow.compile();
-    const finalState = await app.invoke({ question: userQuestion, repoUrl: repoUrl, loopCount: 0, isGoodAnswer: false });
+    const finalState = await app.invoke({ 
+        question: userQuestion, 
+        repoUrl: repoUrl, 
+        loopCount: 0, 
+        isGoodAnswer: false, 
+        messages: [] 
+    }, {
+        configurable: { repoUrl }
+    });
     
     return finalState.answer;
 };

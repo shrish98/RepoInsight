@@ -91,14 +91,17 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
 });
 
 // Catch-all to serve React app for unknown routes (React Router support)
-app.get('*', (req, res) => {
+app.get(/^(.*)$/, (req, res) => {
   res.sendFile(path.join(__dirname, '../public', 'index.html'));
 });
 
 // Connect to Database
 try {
   if (process.env.MONGODB_URI) {
-    mongoose.connect(process.env.MONGODB_URI).then(() => console.log('✅ Connected to MongoDB Atlas'));
+    mongoose.set('bufferCommands', false);
+    mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 5000 })
+      .then(() => console.log('✅ Connected to MongoDB Atlas'))
+      .catch(error => console.error('❌ MongoDB connection error:', error.message));
   } else {
     console.log('⚠️ MONGODB_URI not found in .env. Skipping DB connection for now.');
   }

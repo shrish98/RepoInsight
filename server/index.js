@@ -1,6 +1,6 @@
+import './loadEnv.js';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { processRepository } from './services/ragService.js';
 import { runAgent } from './services/agentService.js';
@@ -8,8 +8,6 @@ import authRoutes from './routes/auth.js';
 import historyRoutes from './routes/history.js';
 import { authMiddleware } from './middleware/auth.js';
 import { ChatSession } from './models/ChatSession.js';
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -23,6 +21,16 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Database connection check middleware
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api') && req.path !== '/api/health' && process.env.MONGODB_URI && mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      error: "Database connection is not established. Please check server logs."
+    });
+  }
+  next();
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -99,14 +107,13 @@ app.get(/^(.*)$/, (req, res) => {
 try {
   if (process.env.MONGODB_URI) {
     mongoose.set('bufferCommands', false);
-    mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 5000 })
-      .then(() => console.log('✅ Connected to MongoDB Atlas'))
-      .catch(error => console.error('❌ MongoDB connection error:', error.message));
+    await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 5000 });
+    console.log('✅ Connected to MongoDB Atlas');
   } else {
     console.log('⚠️ MONGODB_URI not found in .env. Skipping DB connection for now.');
   }
 } catch (error) {
-  console.error('❌ Failed to connect to MongoDB:', error.message);
+  console.error('❌ MongoDB connection error:', error.message);
 }
 
 // Start Server

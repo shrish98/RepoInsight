@@ -2,7 +2,7 @@
   "name": "repoinsight",
   "version": "1.0.0",
   "scripts": {
-    "dev": "concurrently \"npm run dev --prefix client\" \"cd server && node index.js\"",
+    "dev": "concurrently \"npm run dev --prefix client\" \"cd server && node --watch index.js\"",
     "build": "cd client && npm install && npm run build && cd .. && rm -rf public && mv client/dist public",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

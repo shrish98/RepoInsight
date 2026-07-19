@@ -7,6 +7,7 @@ import 'highlight.js/styles/atom-one-dark.css'
 import { Search, Send, Code2, Bot, User, Loader2, Database, AlertCircle, LogOut, History, MessageSquare, Trash2 } from 'lucide-react'
 import { AuthContext } from './context/AuthContext'
 import { Navigate } from 'react-router-dom'
+import Landing from './pages/Landing'
 
 function App() {
   const { user, token, logout } = useContext(AuthContext);
@@ -163,9 +164,9 @@ function App() {
     }
   }
 
-  // Protected route redirect
+  // If not authenticated, render the public landing page
   if (!token) {
-    return <Navigate to="/login" />
+    return <Landing />
   }
 
   return (

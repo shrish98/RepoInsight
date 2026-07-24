@@ -6,6 +6,7 @@ import { processRepository } from './services/ragService.js';
 import { runAgent } from './services/agentService.js';
 import { getOrGenerateSummary } from './services/summaryService.js';
 import { normalizeRepoUrl } from './utils/urlHelper.js';
+import { RepoSummary } from './models/RepoSummary.js';
 import authRoutes from './routes/auth.js';
 import historyRoutes from './routes/history.js';
 import { authMiddleware } from './middleware/auth.js';
@@ -63,6 +64,9 @@ app.post('/api/analyze', authMiddleware, async (req, res) => {
   try {
     console.log(`Received request to analyze: ${repoUrl}`);
     await processRepository(repoUrl);
+
+    // Invalidate cached summary to generate fresh diagram
+    await RepoSummary.deleteOne({ repoUrl });
 
     // Auto-generate Architecture Summary
     const summary = await getOrGenerateSummary(repoUrl);

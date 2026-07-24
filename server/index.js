@@ -2,6 +2,7 @@ import './loadEnv.js';
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
+import fs from 'fs';
 import { processRepository } from './services/ragService.js';
 import { runAgent } from './services/agentService.js';
 import { getOrGenerateSummary } from './services/summaryService.js';
@@ -39,8 +40,12 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/history', historyRoutes);
 
-// Serve Static Frontend (React/Vite)
-app.use(express.static(path.join(__dirname, '../public')));
+// Serve Static Frontend (React/Vite) - checks client/dist first, fallback to public
+const staticFolder = fs.existsSync(path.join(__dirname, '../client/dist/index.html'))
+  ? path.join(__dirname, '../client/dist')
+  : path.join(__dirname, '../public');
+
+app.use(express.static(staticFolder));
 
 // Health Route
 app.get('/api/health', (req, res) => {
@@ -132,7 +137,10 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
 
 // Catch-all to serve React app for unknown routes (React Router support)
 app.get(/^(.*)$/, (req, res) => {
-  res.sendFile(path.join(__dirname, '../public', 'index.html'));
+  const indexFile = fs.existsSync(path.join(__dirname, '../client/dist/index.html'))
+    ? path.join(__dirname, '../client/dist/index.html')
+    : path.join(__dirname, '../public/index.html');
+  res.sendFile(indexFile);
 });
 
 // Connect to Database

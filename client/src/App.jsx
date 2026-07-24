@@ -8,6 +8,8 @@ import { Search, Send, Code2, Bot, User, Loader2, Database, AlertCircle, LogOut,
 import { AuthContext } from './context/AuthContext'
 import { Navigate } from 'react-router-dom'
 import Landing from './pages/Landing'
+import VoiceChatControls from './components/VoiceChatControls'
+import RepoSummaryCard from './components/RepoSummaryCard'
 
 function App() {
   const { user, token, logout } = useContext(AuthContext);
@@ -17,6 +19,7 @@ function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisStatus, setAnalysisStatus] = useState(null)
   const [isReady, setIsReady] = useState(false)
+  const [repoSummary, setRepoSummary] = useState(null)
   
   // State for Step 2: Chat
   const [question, setQuestion] = useState('')
@@ -61,6 +64,7 @@ function App() {
     setRepoUrl(url);
     setIsReady(true);
     setAnalysisStatus({ type: 'success', msg: 'Loaded previous session.' });
+    setRepoSummary(null);
     
     try {
       const res = await fetch(`/api/history/repo?repoUrl=${encodeURIComponent(url)}`, {
@@ -70,8 +74,17 @@ function App() {
         const data = await res.json();
         setChatHistory(data.messages || []);
       }
+
+      // Fetch Summary
+      const summaryRes = await fetch(`/api/summary?repoUrl=${encodeURIComponent(url)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (summaryRes.ok) {
+        const summaryData = await summaryRes.json();
+        if (summaryData.summary) setRepoSummary(summaryData.summary);
+      }
     } catch (e) {
-      console.error("Failed to load session messages", e);
+      console.error("Failed to load session messages or summary", e);
     }
   };
 
@@ -87,6 +100,7 @@ function App() {
           setIsReady(false);
           setChatHistory([]);
           setAnalysisStatus(null);
+          setRepoSummary(null);
         }
         fetchHistory();
       }
@@ -102,8 +116,9 @@ function App() {
 
     setIsAnalyzing(true)
     setIsReady(false)
-    setAnalysisStatus({ type: 'loading', msg: 'Cloning repository and embedding chunks... (This might take a minute)' })
+    setAnalysisStatus({ type: 'loading', msg: 'Cloning repository, generating architecture diagram & embedding chunks...' })
     setChatHistory([])
+    setRepoSummary(null)
 
     try {
       const response = await fetch('/api/analyze', {
@@ -119,6 +134,9 @@ function App() {
       if (response.ok) {
         setAnalysisStatus({ type: 'success', msg: 'Repository analyzed and embedded successfully! You can now ask questions.' })
         setIsReady(true)
+        if (data.summary) {
+          setRepoSummary(data.summary);
+        }
         fetchHistory() // Refresh sidebar
       } else {
         setAnalysisStatus({ type: 'error', msg: data.error })
@@ -302,6 +320,14 @@ function App() {
             </AnimatePresence>
           </motion.section>
 
+          {/* Repo Intelligence Summary & Architecture Diagram */}
+          {repoSummary && (
+            <RepoSummaryCard 
+              summary={repoSummary} 
+              onSelectQuestion={(q) => setQuestion(q)} 
+            />
+          )}
+
           {/* Step 2: Chat with AI UI */}
           <motion.section 
             initial={{ opacity: 0, y: 20 }}
@@ -383,6 +409,20 @@ function App() {
                   onChange={(e) => setQuestion(e.target.value)}
                   disabled={isAsking || !isReady}
                 />
+
+                <VoiceChatControls 
+                  question={question}
+                  setQuestion={setQuestion}
+                  onSendMessage={handleAskQuestion}
+                  isAsking={isAsking}
+                  isReady={isReady}
+                  latestAgentMessage={
+                    chatHistory.length > 0 && chatHistory[chatHistory.length - 1].role === 'agent' 
+                      ? chatHistory[chatHistory.length - 1].text 
+                      : ''
+                  }
+                />
+
                 <button
                   type="submit"
                   disabled={isAsking || !isReady || !question.trim()}

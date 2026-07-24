@@ -4,6 +4,7 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 import { processRepository } from './services/ragService.js';
 import { runAgent } from './services/agentService.js';
+import { getOrGenerateSummary } from './services/summaryService.js';
 import { normalizeRepoUrl } from './utils/urlHelper.js';
 import authRoutes from './routes/auth.js';
 import historyRoutes from './routes/history.js';
@@ -50,7 +51,7 @@ app.get('/', (req, res) => {
   res.status(200).send('RepoInsight API is running!');
 });
 
-// Route 1: Trigger the RAG Pipeline (The Scout & Harvester)
+// Route 1: Trigger the RAG Pipeline (The Scout & Harvester) + Summary
 app.post('/api/analyze', authMiddleware, async (req, res) => {
   const { repoUrl: rawRepoUrl } = req.body;
   const repoUrl = normalizeRepoUrl(rawRepoUrl);
@@ -62,10 +63,36 @@ app.post('/api/analyze', authMiddleware, async (req, res) => {
   try {
     console.log(`Received request to analyze: ${repoUrl}`);
     await processRepository(repoUrl);
-    res.json({ message: "Repository successfully analyzed and saved to the database!", repoUrl });
+
+    // Auto-generate Architecture Summary
+    const summary = await getOrGenerateSummary(repoUrl);
+
+    res.json({ 
+      message: "Repository successfully analyzed and saved to the database!", 
+      repoUrl,
+      summary 
+    });
   } catch (error) {
     console.error("Analysis Error:", error);
     res.status(500).json({ error: "Failed to analyze repository." });
+  }
+});
+
+// Route 1b: Fetch Summary for a repository
+app.get('/api/summary', authMiddleware, async (req, res) => {
+  const { repoUrl: rawRepoUrl } = req.query;
+  const repoUrl = normalizeRepoUrl(rawRepoUrl);
+
+  if (!repoUrl) {
+    return res.status(400).json({ error: "repoUrl parameter is required." });
+  }
+
+  try {
+    const summary = await getOrGenerateSummary(repoUrl);
+    res.json({ summary });
+  } catch (error) {
+    console.error("Error fetching summary:", error);
+    res.status(500).json({ error: "Failed to fetch summary." });
   }
 });
 

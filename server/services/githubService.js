@@ -1,4 +1,7 @@
-export const fetchRepoTree = async (repoUrl) => {
+import { normalizeRepoUrl } from '../utils/urlHelper.js';
+
+export const fetchRepoTree = async (rawRepoUrl) => {
+    const repoUrl = normalizeRepoUrl(rawRepoUrl);
     console.log(`Starting to fetch repository tree for: ${repoUrl}`);
 
     const urlParts = repoUrl.replace('https://github.com/', '').split('/');
@@ -34,18 +37,28 @@ export const fetchRepoTree = async (repoUrl) => {
             throw new Error(data.message || `Failed to fetch repository tree for branch "${branch}".`);
         }
 
+        const ignoredExtensions = [
+            '.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg', '.webp',
+            '.woff', '.woff2', '.eot', '.ttf', '.otf',
+            '.pdf', '.zip', '.tar', '.gz', '.7z',
+            '.mp3', '.mp4', '.avi', '.mov',
+            '.lock', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml'
+        ];
+
+        const ignoredDirs = ['node_modules/', '.git/', '.next/', 'dist/', 'build/', 'coverage/'];
+
         const relevantFiles = data.tree.filter(item => {
-            return item.type === 'blob' && 
-                   !item.path.includes('node_modules/') && 
-                   !item.path.includes('.git/') &&
-                   !item.path.endsWith('.png') && 
-                   !item.path.endsWith('.svg') && 
-                   !item.path.endsWith('.lock');  
+            if (item.type !== 'blob') return false;
+            const lowerPath = item.path.toLowerCase();
+            if (ignoredDirs.some(dir => lowerPath.includes(dir))) return false;
+            if (ignoredExtensions.some(ext => lowerPath.endsWith(ext))) return false;
+            return true;
         });
 
         console.log(`Successfully found ${relevantFiles.length} relevant files to analyze.`);
         
-        return { owner, repo, branch, files: relevantFiles }; 
+        return { owner, repo, branch, files: relevantFiles, repoUrl }; 
+
 
     } catch (error) {
         console.error("Error in fetchRepoTree:", error);
@@ -82,7 +95,8 @@ export const fetchFileContent = async (owner, repo, branch, filePath) => {
 }
 
 // NEW TOOL FUNCTION: Search GitHub Issues and PRs
-export const searchGithubIssues = async (repoUrl, query) => {
+export const searchGithubIssues = async (rawRepoUrl, query) => {
+    const repoUrl = normalizeRepoUrl(rawRepoUrl);
     console.log(`Searching GitHub issues for: ${query} on ${repoUrl}`);
     const urlParts = repoUrl.replace('https://github.com/', '').split('/');
     const owner = urlParts[0];

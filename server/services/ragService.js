@@ -1,5 +1,6 @@
 import { fetchRepoTree, fetchFileContent } from './githubService.js';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
+import { normalizeRepoUrl } from '../utils/urlHelper.js';
 
 // NEW: Import Gemini Embeddings and MongoDB Vector Store
 import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
@@ -8,13 +9,13 @@ import mongoose from 'mongoose';
 
 // Helper function to get the MongoDB collection
 const getCollection = () => {
-    // getClient() returns the native MongoClient which LangChain requires
     const client = mongoose.connection.getClient();
     return client.db("repoinsight").collection("code_chunks");
 }
 
-export const processRepository = async (repoUrl) => {
+export const processRepository = async (rawRepoUrl) => {
     try {
+        const repoUrl = normalizeRepoUrl(rawRepoUrl);
         console.log(`--- Starting RAG Processing for ${repoUrl} ---`);
         
         // 1. Call the Scout
@@ -52,24 +53,33 @@ export const processRepository = async (repoUrl) => {
         // STEP 4: EMBEDDINGS & VECTOR STORAGE
         // ==========================================
 
-        // 4a. Initialize Gemini (The Translator)
-        // This converts English/Code into mathematical numbers (vectors)
+        const collection = getCollection();
+
+        // 4a. Clear old chunks for this repository to prevent duplicates
+        try {
+            const deleteResult = await collection.deleteMany({
+                $or: [
+                    { repoUrl: repoUrl },
+                    { "metadata.repoUrl": repoUrl }
+                ]
+            });
+            console.log(`Cleared ${deleteResult.deletedCount} existing chunks for ${repoUrl}`);
+        } catch (delErr) {
+            console.warn("Could not delete existing chunks prior to indexing:", delErr.message);
+        }
+
+        // 4b. Initialize Gemini (The Translator)
         const embeddings = new GoogleGenerativeAIEmbeddings({
             apiKey: process.env.GEMINI_API_KEY,
-            model: "gemini-embedding-001", // Standard Gemini embedding model
+            model: "gemini-embedding-001",
         });
-
-        // 4b. Get the MongoDB Collection
-        const collection = getCollection();
         
         console.log(`Uploading vectors to MongoDB Atlas...`);
         
         // 4c. The Magic Upload
-        // This takes all our code chunks, sends them to Gemini to get the math vectors, 
-        // and then saves the text + the math into MongoDB instantly.
         await MongoDBAtlasVectorSearch.fromDocuments(allChunks, embeddings, {
             collection: collection,
-            indexName: "vector_index", // Important: We must create this exact index name in the Atlas UI later
+            indexName: "vector_index",
             textKey: "text",
             embeddingKey: "embedding",
         });
@@ -82,3 +92,4 @@ export const processRepository = async (repoUrl) => {
         throw error;
     }
 }
+

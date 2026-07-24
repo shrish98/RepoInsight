@@ -4,6 +4,7 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 import { processRepository } from './services/ragService.js';
 import { runAgent } from './services/agentService.js';
+import { normalizeRepoUrl } from './utils/urlHelper.js';
 import authRoutes from './routes/auth.js';
 import historyRoutes from './routes/history.js';
 import { authMiddleware } from './middleware/auth.js';
@@ -51,17 +52,17 @@ app.get('/', (req, res) => {
 
 // Route 1: Trigger the RAG Pipeline (The Scout & Harvester)
 app.post('/api/analyze', authMiddleware, async (req, res) => {
-  const { repoUrl } = req.body;
+  const { repoUrl: rawRepoUrl } = req.body;
+  const repoUrl = normalizeRepoUrl(rawRepoUrl);
 
   if (!repoUrl) {
-    return res.status(400).json({ error: "Please provide a GitHub repoUrl." });
+    return res.status(400).json({ error: "Please provide a valid GitHub repoUrl." });
   }
 
   try {
     console.log(`Received request to analyze: ${repoUrl}`);
-    // This triggers the RAG service which fetches, chunks, embeds, and saves to MongoDB
     await processRepository(repoUrl);
-    res.json({ message: "Repository successfully analyzed and saved to the database!" });
+    res.json({ message: "Repository successfully analyzed and saved to the database!", repoUrl });
   } catch (error) {
     console.error("Analysis Error:", error);
     res.status(500).json({ error: "Failed to analyze repository." });
@@ -70,7 +71,8 @@ app.post('/api/analyze', authMiddleware, async (req, res) => {
 
 // Route 2: Chat with the Agent (The Brain)
 app.post('/api/chat', authMiddleware, async (req, res) => {
-  const { question, repoUrl } = req.body;
+  const { question, repoUrl: rawRepoUrl } = req.body;
+  const repoUrl = normalizeRepoUrl(rawRepoUrl);
 
   if (!question || !repoUrl) {
     return res.status(400).json({ error: "Please provide a question and repoUrl." });
@@ -78,7 +80,6 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
 
   try {
     console.log(`Received question: ${question} for repo: ${repoUrl}`);
-    // Trigger the LangGraph workflow
     const answer = await runAgent(question, repoUrl);
 
     // Save to ChatSession

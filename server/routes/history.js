@@ -1,6 +1,7 @@
 import express from 'express';
 import { ChatSession } from '../models/ChatSession.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { normalizeRepoUrl } from '../utils/urlHelper.js';
 
 const router = express.Router();
 
@@ -19,7 +20,8 @@ router.get('/', authMiddleware, async (req, res) => {
 
 // Get chat history for a specific repository
 router.get('/repo', authMiddleware, async (req, res) => {
-  const { repoUrl } = req.query;
+  const { repoUrl: rawRepoUrl } = req.query;
+  const repoUrl = normalizeRepoUrl(rawRepoUrl);
   if (!repoUrl) return res.status(400).json({ error: 'repoUrl is required' });
 
   try {
@@ -35,7 +37,8 @@ router.get('/repo', authMiddleware, async (req, res) => {
 
 // Delete chat history for a specific repository
 router.delete('/repo', authMiddleware, async (req, res) => {
-  const { repoUrl } = req.query;
+  const { repoUrl: rawRepoUrl } = req.query;
+  const repoUrl = normalizeRepoUrl(rawRepoUrl);
   if (!repoUrl) return res.status(400).json({ error: 'repoUrl is required' });
 
   try {

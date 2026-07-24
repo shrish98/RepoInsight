@@ -70,11 +70,14 @@ app.post('/api/analyze', authMiddleware, async (req, res) => {
     console.log(`Received request to analyze: ${repoUrl}`);
     await processRepository(repoUrl);
 
-    // Invalidate cached summary to generate fresh diagram
-    await RepoSummary.deleteOne({ repoUrl });
-
-    // Auto-generate Architecture Summary
-    const summary = await getOrGenerateSummary(repoUrl);
+    // Auto-generate Architecture Summary (non-blocking for RAG completion)
+    let summary = null;
+    try {
+      await RepoSummary.deleteOne({ repoUrl });
+      summary = await getOrGenerateSummary(repoUrl);
+    } catch (summaryErr) {
+      console.warn("Summary generation warning:", summaryErr.message);
+    }
 
     res.json({ 
       message: "Repository successfully analyzed and saved to the database!", 
@@ -83,7 +86,7 @@ app.post('/api/analyze', authMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error("Analysis Error:", error);
-    res.status(500).json({ error: "Failed to analyze repository." });
+    res.status(500).json({ error: error.message || "Failed to analyze repository." });
   }
 });
 

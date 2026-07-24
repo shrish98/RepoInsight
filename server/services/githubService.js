@@ -1,5 +1,21 @@
 import { normalizeRepoUrl } from '../utils/urlHelper.js';
 
+// Safe GitHub fetch helper that retries without Authorization if token request fails (400, 401, 403)
+const safeFetchGithub = async (url) => {
+    const token = process.env.GITHUB_TOKEN?.trim();
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    let response = await fetch(url, { headers });
+
+    // If request with GITHUB_TOKEN fails (e.g. 400 Bad Request, 401 Bad Credentials, 403 Rate Limit), retry unauthenticated
+    if (!response.ok && headers.Authorization) {
+        console.warn(`⚠️ GitHub request with token failed (${response.status}). Retrying unauthenticated for: ${url}`);
+        response = await fetch(url, {});
+    }
+
+    return response;
+};
+
 export const fetchRepoTree = async (rawRepoUrl) => {
     const repoUrl = normalizeRepoUrl(rawRepoUrl);
     console.log(`Starting to fetch repository tree for: ${repoUrl}`);
@@ -13,13 +29,9 @@ export const fetchRepoTree = async (rawRepoUrl) => {
     }
 
     try {
-        const headers = process.env.GITHUB_TOKEN 
-            ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN.trim()}` } 
-            : {};
-            
         // 1. Fetch repo info to get default branch
         const repoInfoUrl = `https://api.github.com/repos/${owner}/${repo}`;
-        const infoResponse = await fetch(repoInfoUrl, { headers });
+        const infoResponse = await safeFetchGithub(repoInfoUrl);
         const infoData = await infoResponse.json();
         
         if (!infoResponse.ok) {
@@ -30,7 +42,7 @@ export const fetchRepoTree = async (rawRepoUrl) => {
 
         // 2. Fetch tree
         const apiUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
-        const response = await fetch(apiUrl, { headers });
+        const response = await safeFetchGithub(apiUrl);
         const data = await response.json();
 
         if (!response.ok) {
@@ -59,32 +71,24 @@ export const fetchRepoTree = async (rawRepoUrl) => {
         
         return { owner, repo, branch, files: relevantFiles, repoUrl }; 
 
-
     } catch (error) {
         console.error("Error in fetchRepoTree:", error);
         throw error;
     }
-}
+};
 
-
-// NEW HARVESTER FUNCTION
+// HARVESTER FUNCTION: Fetch raw code content
 export const fetchFileContent = async (owner, repo, branch, filePath) => {
-    // We use raw.githubusercontent.com which gives us the raw text of the code directly.
     const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
     
     try {
-        const headers = process.env.GITHUB_TOKEN 
-            ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN.trim()}` } 
-            : {};
-
-        const response = await fetch(rawUrl, { headers });
+        const response = await safeFetchGithub(rawUrl);
         
         if (!response.ok) {
             console.warn(`Skipping file ${filePath}: Failed to fetch content.`);
-            return null; // Return null if a file fails, so it doesn't crash the whole app
+            return null;
         }
 
-        // Return the actual raw code as a giant string of text
         const codeText = await response.text();
         return codeText;
 
@@ -92,9 +96,9 @@ export const fetchFileContent = async (owner, repo, branch, filePath) => {
         console.error(`Error fetching file content for ${filePath}:`, error);
         return null;
     }
-}
+};
 
-// NEW TOOL FUNCTION: Search GitHub Issues and PRs
+// TOOL FUNCTION: Search GitHub Issues and PRs
 export const searchGithubIssues = async (rawRepoUrl, query) => {
     const repoUrl = normalizeRepoUrl(rawRepoUrl);
     console.log(`Searching GitHub issues for: ${query} on ${repoUrl}`);
@@ -107,13 +111,8 @@ export const searchGithubIssues = async (rawRepoUrl, query) => {
     }
 
     try {
-        const headers = process.env.GITHUB_TOKEN 
-            ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN.trim()}` } 
-            : {};
-
-        // Query issues & PRs for the specific repo
         const searchUrl = `https://api.github.com/search/issues?q=repo:${owner}/${repo}+${encodeURIComponent(query)}&per_page=5`;
-        const response = await fetch(searchUrl, { headers });
+        const response = await safeFetchGithub(searchUrl);
         const data = await response.json();
 
         if (!response.ok) {
@@ -134,4 +133,4 @@ export const searchGithubIssues = async (rawRepoUrl, query) => {
         console.error("Error searching GitHub issues:", error);
         return "An error occurred while searching GitHub issues.";
     }
-}
+};

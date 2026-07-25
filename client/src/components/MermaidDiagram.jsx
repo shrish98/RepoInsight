@@ -31,7 +31,6 @@ const sanitizeMermaidChart = (chartText) => {
     clean = `graph TD\n${clean}`;
   }
 
-  // Quote unquoted node labels: e.g. NodeA[Label Text] -> NodeA["Label Text"]
   clean = clean.replace(/([A-Za-z0-9_]+)\[([^"\n]+?)\]/g, (match, nodeId, label) => {
     if (label.startsWith('"') && label.endsWith('"')) {
       return match;
@@ -54,7 +53,6 @@ export default function MermaidDiagram({ chart }) {
   const modalContainerRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Render Inline Diagram
   useEffect(() => {
     if (!containerRef.current) return;
     let isMounted = true;
@@ -88,9 +86,9 @@ export default function MermaidDiagram({ chart }) {
     };
   }, [chart]);
 
-  // Render Fullscreen Modal Diagram when expanded
   useEffect(() => {
     if (isFullscreen && modalContainerRef.current) {
+
       const renderModalChart = async () => {
         const targetCode = sanitizeMermaidChart(chart) || DEFAULT_FALLBACK_DIAGRAM;
         try {

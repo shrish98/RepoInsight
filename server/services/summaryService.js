@@ -8,22 +8,16 @@ export const getOrGenerateSummary = async (rawRepoUrl) => {
     if (!repoUrl) return null;
 
     try {
-        // 1. Check if summary already exists in DB
         let existingSummary = await RepoSummary.findOne({ repoUrl });
         if (existingSummary && existingSummary.techStack && existingSummary.techStack.length > 0) {
-            console.log(`Using cached RepoSummary for: ${repoUrl}`);
             return existingSummary;
         }
 
-        console.log(`Generating fresh RepoSummary and Architecture Diagram for: ${repoUrl}...`);
-
-        // 2. Scout repository tree & package.json content
         const repoData = await fetchRepoTree(repoUrl);
         const { owner, repo, branch, files } = repoData;
 
         const filePaths = files.map(f => f.path);
         
-        // Try to fetch package.json or main config if present
         let packageJsonText = '';
         const pkgFile = files.find(f => f.path === 'package.json' || f.path.endsWith('/package.json'));
         if (pkgFile) {
@@ -60,7 +54,6 @@ Output ONLY raw valid JSON without markdown wrapping or code blocks.`;
         const response = await llm.invoke(prompt);
         let rawText = response.content.trim();
         
-        // Strip markdown backticks if any
         if (rawText.startsWith('```')) {
             rawText = rawText.replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
         }
@@ -69,7 +62,7 @@ Output ONLY raw valid JSON without markdown wrapping or code blocks.`;
         try {
             parsedData = JSON.parse(rawText);
         } catch (jsonErr) {
-            console.warn("Failed to parse JSON response from LLM for summary, fallback defaults applied.");
+            console.warn("Failed to parse JSON response for summary, using defaults.");
             parsedData = {
                 overview: `A repository containing ${filePaths.length} files analyzed by RepoInsight.`,
                 techStack: ["JavaScript", "Node.js"],
@@ -83,7 +76,6 @@ Output ONLY raw valid JSON without markdown wrapping or code blocks.`;
             };
         }
 
-        // Clean up Mermaid string if wrapped
         if (parsedData.architectureDiagram) {
             parsedData.architectureDiagram = parsedData.architectureDiagram
                 .replace(/^```mermaid/i, '')
@@ -92,7 +84,6 @@ Output ONLY raw valid JSON without markdown wrapping or code blocks.`;
                 .trim();
         }
 
-        // 3. Save or update in MongoDB
         const summaryDoc = await RepoSummary.findOneAndUpdate(
             { repoUrl },
             {
@@ -107,9 +98,9 @@ Output ONLY raw valid JSON without markdown wrapping or code blocks.`;
         );
 
         return summaryDoc;
-
     } catch (error) {
-        console.error("Error generating RepoSummary:", error);
+        console.error("Error generating repo summary:", error);
         return null;
     }
 };
+

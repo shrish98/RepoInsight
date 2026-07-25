@@ -10,7 +10,6 @@ import { searchGithubIssues } from "./githubService.js";
 import { normalizeRepoUrl } from "../utils/urlHelper.js";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 
-// 1. Define Tools
 const githubIssuesTool = tool(async ({ query }, config) => {
     const repoUrl = config?.configurable?.repoUrl;
     if (!repoUrl) {
@@ -28,7 +27,6 @@ const githubIssuesTool = tool(async ({ query }, config) => {
 const tools = [githubIssuesTool];
 const toolNode = new ToolNode(tools);
 
-// 2. Define the State (The Agent's Memory)
 const agentState = {
     question: { value: (x, y) => y ? y : x, default: () => "" },
     searchQuery: { value: (x, y) => y ? y : x, default: () => "" },
@@ -58,12 +56,10 @@ const getVectorStore = () => {
 const retrieveNode = async (state) => {
     const activeQuery = state.searchQuery || state.question;
     const cleanRepoUrl = normalizeRepoUrl(state.repoUrl);
-    console.log(`--- AGENT: Retrieving Context for query: "${activeQuery}" on repo: ${cleanRepoUrl} ---`);
     const vectorStore = getVectorStore();
     
     let docs = [];
     
-    // 1. Try vector similarity search with preFilter
     try {
         const filter = cleanRepoUrl ? { preFilter: { repoUrl: { $eq: cleanRepoUrl } } } : undefined;
         docs = await vectorStore.similaritySearch(activeQuery, 10, filter);
@@ -71,15 +67,12 @@ const retrieveNode = async (state) => {
         console.warn("Vector search with preFilter failed or unindexed:", err.message);
     }
 
-    // Filter retrieved docs by repoUrl in case preFilter returned unfiltered results
     if (cleanRepoUrl && docs.length > 0) {
         const matching = docs.filter(d => (d.metadata?.repoUrl === cleanRepoUrl || d.repoUrl === cleanRepoUrl));
         if (matching.length > 0) docs = matching;
     }
 
-    // 2. Fallback tier: Fetch top 50 matches across vector store and filter locally for cleanRepoUrl
     if (docs.length === 0) {
-        console.log("--- AGENT: 0 docs with preFilter. Fetching top 50 similarity matches... ---");
         try {
             const allDocs = await vectorStore.similaritySearch(activeQuery, 50);
             if (cleanRepoUrl) {
@@ -93,14 +86,11 @@ const retrieveNode = async (state) => {
         }
     }
 
-    // 3. Secondary Keyword Fallback: Query MongoDB collection directly if vector search returned 0 docs for this repo
     if (docs.length === 0 && cleanRepoUrl) {
-        console.log("--- AGENT: Still 0 docs. Trying direct MongoDB text/regex fallback... ---");
         try {
             const client = mongoose.connection.getClient();
             const collection = client.db("repoinsight").collection("code_chunks");
             
-            // Extract keywords from activeQuery
             const keywords = activeQuery.split(/\s+/).filter(w => w.length > 2);
             const regexPattern = keywords.join("|");
             
@@ -124,12 +114,10 @@ const retrieveNode = async (state) => {
         }
     }
 
-    console.log(`--- AGENT: Retrieved ${docs.length} code context chunks ---`);
     return { context: docs };
 };
 
 const generateNode = async (state, config) => {
-    console.log("--- AGENT: Generating Answer with Groq (Tools Enabled) ---");
     const llm = new ChatGroq({ apiKey: process.env.GROQ_API_KEY, model: "llama-3.3-70b-versatile", temperature: 0 });
     
     const llmWithTools = llm.bindTools(tools);
@@ -147,7 +135,6 @@ If no relevant implementation exists in the codebase or issues, state clearly wh
 Code Context:
 ${formattedContext}`;
 
-    // Always ask the original user question (state.question)!
     const llmMessages = [
         new SystemMessage(systemPrompt),
         new HumanMessage(state.question),
@@ -165,7 +152,6 @@ ${formattedContext}`;
 };
 
 const evaluateNode = async (state) => {
-    console.log("--- AGENT: Evaluator checking the answer with Groq ---");
     const llm = new ChatGroq({ apiKey: process.env.GROQ_API_KEY, model: "llama-3.3-70b-versatile", temperature: 0 });
 
     const currentAnswer = state.answer || "I don't know based on the provided code or issues.";
@@ -183,35 +169,28 @@ Format: [YES/NO] | [New Search Keywords]`;
     const output = response.content.trim();
     
     if (output.startsWith("YES")) {
-        console.log(`--- EVALUATOR DECISION: APPROVED ✅ ---`);
         return { isGoodAnswer: true, loopCount: 1 };
     } else {
         const parts = output.split("|");
         const newQuery = parts.length > 1 ? parts[1].trim() : state.question;
-        console.log(`--- EVALUATOR DECISION: REJECTED ❌. Rewriting search query to: "${newQuery}" ---`);
         return { isGoodAnswer: false, loopCount: 1, searchQuery: newQuery };
     }
 };
 
-// Route condition after generate
 const routeAfterGenerate = (state) => {
     const lastMessage = state.messages[state.messages.length - 1];
     
     if (lastMessage && lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {
-        console.log("--- ROUTING: Tool Call Detected -> Routing to Tools ---");
         return "tools";
     }
     
-    console.log("--- ROUTING: No Tools -> Routing to Evaluator ---");
     return "evaluate";
 };
 
 const shouldContinue = (state) => {
     if (state.isGoodAnswer || state.loopCount >= 2) {
-        console.log("--- ROUTING: Ending Workflow ---");
         return "end";
     } else {
-        console.log("--- ROUTING: Looping back to Researcher! ---");
         return "retrieve";
     }
 };
@@ -249,3 +228,4 @@ export const runAgent = async (userQuestion, rawRepoUrl) => {
     
     return finalState.answer;
 };
+

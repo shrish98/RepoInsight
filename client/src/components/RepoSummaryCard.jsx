@@ -16,10 +16,8 @@ export default function RepoSummaryCard({ summary, onSelectQuestion }) {
       animate={{ opacity: 1, y: 0 }}
       className="glass-panel p-6 rounded-3xl border border-white/10 relative overflow-hidden mb-6"
     >
-      {/* Background Subtle Gradient */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Header & Tech Stack Badges */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-gradient-to-br from-indigo-500/20 to-cyan-500/20 rounded-2xl border border-indigo-500/30">
@@ -33,7 +31,6 @@ export default function RepoSummaryCard({ summary, onSelectQuestion }) {
           </div>
         </div>
 
-        {/* Tech Stack Badges */}
         {techStack && techStack.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
             {techStack.map((tech, idx) => (
@@ -48,14 +45,12 @@ export default function RepoSummaryCard({ summary, onSelectQuestion }) {
         )}
       </div>
 
-      {/* Overview Description */}
       {overview && (
         <p className="text-sm text-slate-300 leading-relaxed mb-4 font-medium">
           {overview}
         </p>
       )}
 
-      {/* Key Entry Points */}
       {entryPoints && entryPoints.length > 0 && (
         <div className="mb-4 flex items-center flex-wrap gap-2 text-xs">
           <span className="text-slate-400 flex items-center gap-1 font-semibold mr-1">
@@ -69,7 +64,6 @@ export default function RepoSummaryCard({ summary, onSelectQuestion }) {
         </div>
       )}
 
-      {/* Collapsible Architecture Diagram */}
       {architectureDiagram && (
         <div className="mb-5">
           <button
@@ -99,21 +93,19 @@ export default function RepoSummaryCard({ summary, onSelectQuestion }) {
         </div>
       )}
 
-      {/* Smart Preset Question Chips */}
       {suggestedQuestions && suggestedQuestions.length > 0 && (
-        <div>
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 mb-2">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Suggested Questions:
-          </div>
+        <div className="pt-4 border-t border-white/5">
+          <p className="text-xs text-slate-400 font-medium mb-2.5 flex items-center gap-1.5">
+            <HelpCircle className="w-3.5 h-3.5 text-cyan-400" /> Suggested Architecture Questions:
+          </p>
           <div className="flex flex-wrap gap-2">
             {suggestedQuestions.map((q, idx) => (
               <button
                 key={idx}
-                type="button"
-                onClick={() => onSelectQuestion(q)}
-                className="text-xs px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-200 border border-slate-700/60 transition-all flex items-center gap-1.5 text-left group"
+                onClick={() => onSelectQuestion && onSelectQuestion(q)}
+                className="text-xs px-3 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-300 hover:text-white transition-all text-left flex items-center gap-1.5"
               >
-                <HelpCircle className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-300 transition-colors" />
+                <Sparkles className="w-3 h-3 text-cyan-400 flex-shrink-0" />
                 <span>{q}</span>
               </button>
             ))}

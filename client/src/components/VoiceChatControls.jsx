@@ -2,17 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Volume2, VolumeX, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Helper to strip markdown symbols so TTS reads clean natural speech
 const cleanMarkdownForTTS = (text) => {
     if (!text) return '';
     return text
-        .replace(/```[\s\S]*?```/g, ' Code snippet omitted. ') // Replace code blocks
-        .replace(/`([^`]+)`/g, '$1')                        // Remove inline backticks
-        .replace(/#+\s/g, '')                               // Remove headings
-        .replace(/[*_~]/g, '')                              // Remove bold/italics
-        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')            // Remove links, keep text
-        .replace(/!\[([^\]]*)\]\([^)]+\)/g, '')             // Remove images
-        .replace(/[-*+]\s/g, '')                            // Remove bullet points
+        .replace(/```[\s\S]*?```/g, ' Code snippet omitted. ')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/#+\s/g, '')
+        .replace(/[*_~]/g, '')
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        .replace(/!\[([^\]]*)\]\([^)]+\)/g, '')
+        .replace(/[-*+]\s/g, '')
         .trim();
 };
 
@@ -31,7 +30,6 @@ export default function VoiceChatControls({
 
     const recognitionRef = useRef(null);
 
-    // Initialize Speech Recognition
     useEffect(() => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
@@ -66,10 +64,9 @@ export default function VoiceChatControls({
         recognitionRef.current = recognition;
     }, [setQuestion]);
 
-    // Handle TTS when AI responds
     useEffect(() => {
         if (isSpeechEnabled && latestAgentMessage && 'speechSynthesis' in window) {
-            window.speechSynthesis.cancel(); // Stop any previous speech
+            window.speechSynthesis.cancel();
             
             const cleanText = cleanMarkdownForTTS(latestAgentMessage);
             if (cleanText) {
@@ -86,7 +83,6 @@ export default function VoiceChatControls({
         }
     }, [latestAgentMessage, isSpeechEnabled]);
 
-    // Toggle Microphone Recording
     const toggleListening = () => {
         if (!supported) {
             alert('Speech recognition is not supported in your browser. Please try Google Chrome or MS Edge.');
@@ -97,11 +93,11 @@ export default function VoiceChatControls({
             recognitionRef.current?.stop();
             setIsListening(false);
         } else {
-            // Stop any ongoing speech synthesis first
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
                 setIsSpeaking(false);
             }
+
             try {
                 recognitionRef.current?.start();
                 setIsListening(true);

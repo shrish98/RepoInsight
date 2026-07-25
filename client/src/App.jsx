@@ -14,32 +14,27 @@ import RepoSummaryCard from './components/RepoSummaryCard'
 function App() {
   const { user, token, logout } = useContext(AuthContext);
 
-  // State for Step 1: Analysis
   const [repoUrl, setRepoUrl] = useState('')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisStatus, setAnalysisStatus] = useState(null)
   const [isReady, setIsReady] = useState(false)
   const [repoSummary, setRepoSummary] = useState(null)
   
-  // State for Step 2: Chat
   const [question, setQuestion] = useState('')
   const [chatHistory, setChatHistory] = useState([])
   const [isAsking, setIsAsking] = useState(false)
 
-  // State for Sidebar History
   const [savedSessions, setSavedSessions] = useState([])
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
   const chatContainerRef = useRef(null)
 
-  // Auto-scroll chat to bottom
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
     }
   }, [chatHistory, isAsking])
 
-  // Fetch History on mount
   useEffect(() => {
     if (token) {
       fetchHistory();
@@ -75,7 +70,6 @@ function App() {
         setChatHistory(data.messages || []);
       }
 
-      // Fetch Summary
       const summaryRes = await fetch(`/api/summary?repoUrl=${encodeURIComponent(url)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -109,7 +103,6 @@ function App() {
     }
   };
 
-  // Trigger the RAG Pipeline
   const handleAnalyze = async (e) => {
     e.preventDefault()
     if (!repoUrl) return;
@@ -137,18 +130,17 @@ function App() {
         if (data.summary) {
           setRepoSummary(data.summary);
         }
-        fetchHistory() // Refresh sidebar
+        fetchHistory()
       } else {
         setAnalysisStatus({ type: 'error', msg: data.error })
       }
     } catch (error) {
-      setAnalysisStatus({ type: 'error', msg: 'Failed to connect to backend server. Make sure the Express server is running!' })
+      setAnalysisStatus({ type: 'error', msg: 'Failed to connect to backend server.' })
     } finally {
       setIsAnalyzing(false)
     }
   }
 
-  // Trigger the LangGraph Agent
   const handleAskQuestion = async (e) => {
     e.preventDefault()
     if (!question || !isReady) return;
@@ -171,7 +163,7 @@ function App() {
 
       if (response.ok) {
         setChatHistory([...newChat, { role: 'agent', text: data.answer }])
-        fetchHistory() // Refresh sidebar timestamp
+        fetchHistory()
       } else {
         setChatHistory([...newChat, { role: 'agent', text: `❌ Error: ${data.error}` }])
       }
@@ -181,6 +173,7 @@ function App() {
       setIsAsking(false)
     }
   }
+
 
   // If not authenticated, render the public landing page
   if (!token) {

@@ -57,7 +57,7 @@ app.get('/', (req, res) => {
   res.status(200).send('RepoInsight API is running!');
 });
 
-// Route 1: Trigger the RAG Pipeline (The Scout & Harvester) + Summary
+// Analyze repository and generate vector embeddings
 app.post('/api/analyze', authMiddleware, async (req, res) => {
   const { repoUrl: rawRepoUrl } = req.body;
   const repoUrl = normalizeRepoUrl(rawRepoUrl);
@@ -70,7 +70,6 @@ app.post('/api/analyze', authMiddleware, async (req, res) => {
     console.log(`Received request to analyze: ${repoUrl}`);
     await processRepository(repoUrl);
 
-    // Auto-generate Architecture Summary (non-blocking for RAG completion)
     let summary = null;
     try {
       await RepoSummary.deleteOne({ repoUrl });
@@ -90,7 +89,7 @@ app.post('/api/analyze', authMiddleware, async (req, res) => {
   }
 });
 
-// Route 1b: Fetch Summary for a repository
+// Fetch architectural summary for repository
 app.get('/api/summary', authMiddleware, async (req, res) => {
   const { repoUrl: rawRepoUrl } = req.query;
   const repoUrl = normalizeRepoUrl(rawRepoUrl);
@@ -108,7 +107,7 @@ app.get('/api/summary', authMiddleware, async (req, res) => {
   }
 });
 
-// Route 2: Chat with the Agent (The Brain)
+// Chat endpoint with codebase agent
 app.post('/api/chat', authMiddleware, async (req, res) => {
   const { question, repoUrl: rawRepoUrl } = req.body;
   const repoUrl = normalizeRepoUrl(rawRepoUrl);
@@ -121,7 +120,6 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
     console.log(`Received question: ${question} for repo: ${repoUrl}`);
     const answer = await runAgent(question, repoUrl);
 
-    // Save to ChatSession
     let session = await ChatSession.findOne({ userId: req.user.userId, repoUrl });
     if (!session) {
       session = new ChatSession({ userId: req.user.userId, repoUrl, messages: [] });
@@ -138,7 +136,6 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
   }
 });
 
-// Catch-all to serve React app for unknown routes (React Router support)
 app.get(/^(.*)$/, (req, res) => {
   const indexFile = fs.existsSync(path.join(__dirname, '../client/dist/index.html'))
     ? path.join(__dirname, '../client/dist/index.html')
@@ -146,20 +143,19 @@ app.get(/^(.*)$/, (req, res) => {
   res.sendFile(indexFile);
 });
 
-// Connect to Database
 try {
   if (process.env.MONGODB_URI) {
     mongoose.set('bufferCommands', false);
     await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 5000 });
-    console.log('✅ Connected to MongoDB Atlas');
+    console.log('Connected to MongoDB Atlas');
   } else {
-    console.log('⚠️ MONGODB_URI not found in .env. Skipping DB connection for now.');
+    console.log('MONGODB_URI not found in environment.');
   }
 } catch (error) {
-  console.error('❌ MongoDB connection error:', error.message);
+  console.error('MongoDB connection error:', error.message);
 }
 
-// Start Server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });
+

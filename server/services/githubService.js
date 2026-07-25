@@ -1,15 +1,13 @@
 import { normalizeRepoUrl } from '../utils/urlHelper.js';
 
-// Safe GitHub fetch helper that retries without Authorization if token request fails (400, 401, 403)
 const safeFetchGithub = async (url) => {
     const token = process.env.GITHUB_TOKEN?.trim();
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
     let response = await fetch(url, { headers });
 
-    // If request with GITHUB_TOKEN fails (e.g. 400 Bad Request, 401 Bad Credentials, 403 Rate Limit), retry unauthenticated
     if (!response.ok && headers.Authorization) {
-        console.warn(`⚠️ GitHub request with token failed (${response.status}). Retrying unauthenticated for: ${url}`);
+        console.warn(`GitHub request with token failed (${response.status}). Retrying unauthenticated for: ${url}`);
         response = await fetch(url, {});
     }
 
@@ -18,7 +16,6 @@ const safeFetchGithub = async (url) => {
 
 export const fetchRepoTree = async (rawRepoUrl) => {
     const repoUrl = normalizeRepoUrl(rawRepoUrl);
-    console.log(`Starting to fetch repository tree for: ${repoUrl}`);
 
     const urlParts = repoUrl.replace('https://github.com/', '').split('/');
     const owner = urlParts[0];
@@ -29,7 +26,6 @@ export const fetchRepoTree = async (rawRepoUrl) => {
     }
 
     try {
-        // 1. Fetch repo info to get default branch
         const repoInfoUrl = `https://api.github.com/repos/${owner}/${repo}`;
         const infoResponse = await safeFetchGithub(repoInfoUrl);
         const infoData = await infoResponse.json();
@@ -40,7 +36,6 @@ export const fetchRepoTree = async (rawRepoUrl) => {
         
         const branch = infoData.default_branch || 'main';
 
-        // 2. Fetch tree
         const apiUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
         const response = await safeFetchGithub(apiUrl);
         const data = await response.json();
@@ -67,8 +62,6 @@ export const fetchRepoTree = async (rawRepoUrl) => {
             return true;
         });
 
-        console.log(`Successfully found ${relevantFiles.length} relevant files to analyze.`);
-        
         return { owner, repo, branch, files: relevantFiles, repoUrl }; 
 
     } catch (error) {
@@ -77,7 +70,6 @@ export const fetchRepoTree = async (rawRepoUrl) => {
     }
 };
 
-// HARVESTER FUNCTION: Fetch raw code content
 export const fetchFileContent = async (owner, repo, branch, filePath) => {
     const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
     
@@ -85,7 +77,6 @@ export const fetchFileContent = async (owner, repo, branch, filePath) => {
         const response = await safeFetchGithub(rawUrl);
         
         if (!response.ok) {
-            console.warn(`Skipping file ${filePath}: Failed to fetch content.`);
             return null;
         }
 
@@ -98,10 +89,8 @@ export const fetchFileContent = async (owner, repo, branch, filePath) => {
     }
 };
 
-// TOOL FUNCTION: Search GitHub Issues and PRs
 export const searchGithubIssues = async (rawRepoUrl, query) => {
     const repoUrl = normalizeRepoUrl(rawRepoUrl);
-    console.log(`Searching GitHub issues for: ${query} on ${repoUrl}`);
     const urlParts = repoUrl.replace('https://github.com/', '').split('/');
     const owner = urlParts[0];
     const repo = urlParts[1];
@@ -119,18 +108,18 @@ export const searchGithubIssues = async (rawRepoUrl, query) => {
             return `Failed to search GitHub issues: ${data.message}`;
         }
 
-        if (data.items.length === 0) {
-            return "No related issues or pull requests found on GitHub.";
+        if (!data.items || data.items.length === 0) {
+            return `No open/closed GitHub issues or pull requests found for query "${query}".`;
         }
 
-        const results = data.items.map(item => (
-            `Title: ${item.title}\nState: ${item.state}\nURL: ${item.html_url}\nSnippet: ${item.body ? item.body.substring(0, 150) + '...' : 'No description.'}`
-        )).join('\n\n');
+        const issuesList = data.items.map(issue => 
+            `- [${issue.html_url.includes('/pull/') ? 'PR' : 'Issue'} #${issue.number}] ${issue.title} (${issue.state}): ${issue.html_url}`
+        ).join("\n");
 
-        return results;
+        return `Found the following relevant GitHub issues/PRs:\n${issuesList}`;
 
     } catch (error) {
-        console.error("Error searching GitHub issues:", error);
-        return "An error occurred while searching GitHub issues.";
+        console.error("Error in searchGithubIssues tool:", error);
+        return `Error searching GitHub issues: ${error.message}`;
     }
 };

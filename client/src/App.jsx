@@ -141,11 +141,12 @@ function App() {
     }
   }
 
-  const handleAskQuestion = async (e) => {
-    e.preventDefault()
-    if (!question || !isReady) return;
+  const handleAskQuestion = async (e, customQuestion) => {
+    if (e && e.preventDefault) e.preventDefault()
+    const activeQuestion = (typeof customQuestion === 'string' ? customQuestion : question)?.trim();
+    if (!activeQuestion || !isReady || isAsking) return;
 
-    const newChat = [...chatHistory, { role: 'user', text: question }]
+    const newChat = [...chatHistory, { role: 'user', text: activeQuestion }]
     setChatHistory(newChat)
     setQuestion('')
     setIsAsking(true)
@@ -157,15 +158,15 @@ function App() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ question, repoUrl })
+        body: JSON.stringify({ question: activeQuestion, repoUrl })
       })
       const data = await response.json()
 
-      if (response.ok) {
+      if (response.ok && data.answer) {
         setChatHistory([...newChat, { role: 'agent', text: data.answer }])
         fetchHistory()
       } else {
-        setChatHistory([...newChat, { role: 'agent', text: `❌ Error: ${data.error}` }])
+        setChatHistory([...newChat, { role: 'agent', text: `❌ Error: ${data.error || 'Failed to get answer.'}` }])
       }
     } catch (error) {
       setChatHistory([...newChat, { role: 'agent', text: '❌ Error connecting to backend.' }])
@@ -174,20 +175,16 @@ function App() {
     }
   }
 
-
-  // If not authenticated, render the public landing page
   if (!token) {
     return <Landing />
   }
 
   return (
-    <div className="min-h-screen mesh-bg text-slate-100 flex relative overflow-hidden">
+    <div className="h-screen mesh-bg text-slate-100 flex relative overflow-hidden">
       
-      {/* Decorative Orbs */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-600/20 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-cyan-600/20 blur-[120px] pointer-events-none" />
 
-      {/* Sidebar for History */}
       <motion.aside 
         initial={{ x: -300 }}
         animate={{ x: isSidebarOpen ? 0 : -300 }}
@@ -238,10 +235,9 @@ function App() {
         </div>
       </motion.aside>
 
-      {/* Main Content Area */}
-      <div className={`flex-1 flex flex-col items-center pt-10 px-4 pb-10 relative z-10 transition-all ${isSidebarOpen ? 'ml-72' : 'ml-0'}`}>
+      <div className={`flex-1 flex flex-col items-center h-screen overflow-y-auto pt-6 px-4 pb-12 relative z-10 transition-all ${isSidebarOpen ? 'ml-72' : 'ml-0'}`}>
         
-        <header className="max-w-4xl w-full text-center space-y-4 mb-10">
+        <header className="max-w-4xl w-full text-center space-y-2 mb-6 shrink-0">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -256,9 +252,8 @@ function App() {
           </motion.div>
         </header>
 
-        <main className="w-full max-w-4xl flex flex-col gap-6 h-full max-h-[800px]">
+        <main className="w-full max-w-4xl flex flex-col gap-6 flex-1 pb-8">
           
-          {/* Step 1: Analyze Repository UI */}
           <motion.section 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -313,22 +308,19 @@ function App() {
             </AnimatePresence>
           </motion.section>
 
-          {/* Repo Intelligence Summary & Architecture Diagram */}
           {repoSummary && (
             <RepoSummaryCard 
               summary={repoSummary} 
-              onSelectQuestion={(q) => setQuestion(q)} 
+              onSelectQuestion={(q) => handleAskQuestion(null, q)} 
             />
           )}
 
-          {/* Step 2: Chat with AI UI */}
           <motion.section 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`glass-panel p-6 rounded-3xl flex flex-col flex-1 min-h-0 transition-opacity duration-500 ${!isReady && chatHistory.length === 0 ? 'opacity-50 pointer-events-none' : ''}`}
+            className={`glass-panel p-6 rounded-3xl flex flex-col flex-1 min-h-[450px] transition-opacity duration-500 ${!isReady && chatHistory.length === 0 ? 'opacity-50 pointer-events-none' : ''}`}
           >
-            {/* Chat History Display */}
-            <div ref={chatContainerRef} className="flex-1 overflow-y-auto mb-6 pr-4 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+            <div ref={chatContainerRef} className="flex-1 min-h-[200px] max-h-[500px] overflow-y-auto mb-6 pr-4 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
               {chatHistory.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-slate-400 opacity-60">
                   <Bot className="w-16 h-16 mb-4 text-slate-500" />
@@ -390,8 +382,7 @@ function App() {
               )}
             </div>
 
-            {/* Chat Input Field */}
-            <form onSubmit={handleAskQuestion} className="relative mt-auto shrink-0">
+            <form onSubmit={handleAskQuestion} className="relative mt-auto shrink-0 sticky bottom-0 z-20">
               <div className="relative flex items-center bg-slate-900/80 rounded-2xl p-2 border border-white/10 backdrop-blur-xl shadow-lg focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/50 transition-all">
                 <input
                   type="text"
@@ -434,3 +425,4 @@ function App() {
 }
 
 export default App
+

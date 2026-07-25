@@ -56,40 +56,31 @@ const getVectorStore = () => {
 const retrieveNode = async (state) => {
     const activeQuery = state.searchQuery || state.question;
     const cleanRepoUrl = normalizeRepoUrl(state.repoUrl);
+    const repoPathPart = cleanRepoUrl.replace('https://github.com/', '');
     const vectorStore = getVectorStore();
     
+    const matchesRepo = (d) => {
+        const dUrl = normalizeRepoUrl(d.metadata?.repoUrl || d.repoUrl || '');
+        if (!dUrl) return false;
+        return dUrl === cleanRepoUrl || (repoPathPart && dUrl.includes(repoPathPart));
+    };
+
     let docs = [];
     
+    // 1. Try similarity search across vector store
     try {
-        const filter = cleanRepoUrl ? { preFilter: { repoUrl: { $eq: cleanRepoUrl } } } : undefined;
-        docs = await vectorStore.similaritySearch(activeQuery, 10, filter);
+        const rawDocs = await vectorStore.similaritySearch(activeQuery, 25);
+        docs = rawDocs.filter(matchesRepo);
     } catch (err) {
-        console.warn("Vector search with preFilter failed or unindexed:", err.message);
+        console.warn("Vector similarity search warning:", err.message);
     }
 
-    if (cleanRepoUrl && docs.length > 0) {
-        const matching = docs.filter(d => (d.metadata?.repoUrl === cleanRepoUrl || d.repoUrl === cleanRepoUrl));
-        if (matching.length > 0) docs = matching;
-    }
-
-    if (docs.length === 0) {
-        try {
-            const allDocs = await vectorStore.similaritySearch(activeQuery, 50);
-            if (cleanRepoUrl) {
-                const matchedDocs = allDocs.filter(doc => (doc.metadata?.repoUrl === cleanRepoUrl || doc.repoUrl === cleanRepoUrl));
-                docs = matchedDocs.length > 0 ? matchedDocs : allDocs.slice(0, 5);
-            } else {
-                docs = allDocs.slice(0, 5);
-            }
-        } catch (fallbackErr) {
-            console.error("Fallback vector search failed:", fallbackErr.message);
-        }
-    }
-
+    // 2. Keyword / Regex Fallback in MongoDB for target repoUrl
     if (docs.length === 0 && cleanRepoUrl) {
         try {
             const client = mongoose.connection.getClient();
             const collection = client.db("repoinsight").collection("code_chunks");
+            const repoRegex = new RegExp(repoPathPart || cleanRepoUrl, "i");
             
             const keywords = activeQuery.split(/\s+/).filter(w => w.length > 2);
             const regexPattern = keywords.join("|");
@@ -97,13 +88,45 @@ const retrieveNode = async (state) => {
             if (regexPattern) {
                 const rawMongoDocs = await collection.find({
                     $and: [
-                        { $or: [{ repoUrl: cleanRepoUrl }, { "metadata.repoUrl": cleanRepoUrl }] },
+                        { $or: [{ repoUrl: repoRegex }, { "metadata.repoUrl": repoRegex }] },
                         { text: { $regex: regexPattern, $options: "i" } }
                     ]
-                }).limit(5).toArray();
+                }).limit(10).toArray();
 
                 if (rawMongoDocs.length > 0) {
                     docs = rawMongoDocs.map(d => ({
+                        pageContent: d.text,
+                        metadata: { source: d.metadata?.source || d.source || "unknown", repoUrl: cleanRepoUrl }
+                    }));
+                }
+            }
+
+            // 3. Fallback to overview chunks of target repo
+            if (docs.length === 0) {
+                const overviewDocs = await collection.find({
+                    $or: [{ repoUrl: repoRegex }, { "metadata.repoUrl": repoRegex }]
+                }).limit(10).toArray();
+
+                if (overviewDocs.length > 0) {
+                    docs = overviewDocs.map(d => ({
+                        pageContent: d.text,
+                        metadata: { source: d.metadata?.source || d.source || "unknown", repoUrl: cleanRepoUrl }
+                    }));
+                }
+            }
+
+            // 4. Auto-indexing on-the-fly if repository context is completely missing from database
+            if (docs.length === 0 && cleanRepoUrl.includes('github.com/')) {
+                console.log(`Repository context missing for ${cleanRepoUrl}. Auto-indexing on-the-fly...`);
+                const { processRepository } = await import('./ragService.js');
+                await processRepository(cleanRepoUrl);
+
+                const autoIndexedDocs = await collection.find({
+                    $or: [{ repoUrl: repoRegex }, { "metadata.repoUrl": repoRegex }]
+                }).limit(10).toArray();
+
+                if (autoIndexedDocs.length > 0) {
+                    docs = autoIndexedDocs.map(d => ({
                         pageContent: d.text,
                         metadata: { source: d.metadata?.source || d.source || "unknown", repoUrl: cleanRepoUrl }
                     }));
@@ -122,15 +145,19 @@ const generateNode = async (state, config) => {
     
     const llmWithTools = llm.bindTools(tools);
 
-    const formattedContext = state.context.map(doc => 
-        `File: ${doc.metadata?.source || 'Unknown'}\nCode:\n${doc.pageContent}`
-    ).join("\n\n");
+    const formattedContext = state.context.length > 0 
+        ? state.context.map(doc => `File: ${doc.metadata?.source || 'Unknown'}\nCode:\n${doc.pageContent}`).join("\n\n")
+        : "No code snippets were found for this repository.";
 
-    const systemPrompt = `You are a Senior Software Engineer analyzing a GitHub repository.
-Use the following pieces of retrieved code context from the repository to answer the user's question clearly, accurately, and in detail.
-Explain relevant architecture, component functions, API routes, or configuration where applicable.
-If the answer is not fully present in the code context, you can use the github_issues_tool to search the repository's open/closed issues and pull requests.
-If no relevant implementation exists in the codebase or issues, state clearly what was analyzed and that no matching implementation was found.
+    const systemPrompt = `You are a Senior Software Engineer analyzing the GitHub repository "${state.repoUrl}".
+Answer the user's question clearly, accurately, and in detail based on the provided code context.
+Explain relevant architecture, API routes, database schemas, framework controllers, or configuration files found in the code context.
+
+Rules:
+1. Base your answer strictly on the provided codebase context.
+2. If you need to search GitHub issues or pull requests to answer the question, execute the tool directly.
+3. NEVER tell the user to run internal functions or tool names like "github_issues_tool" in plain text.
+4. Do NOT hallucinate frameworks (e.g. do not state it is Next.js unless Next.js files are in the context).
 
 Code Context:
 ${formattedContext}`;
@@ -141,17 +168,33 @@ ${formattedContext}`;
         ...(state.messages || [])
     ];
 
+
+
     const response = await llmWithTools.invoke(llmMessages, config);
     
+    let answerText = "";
+    if (typeof response.content === "string") {
+        answerText = response.content;
+    } else if (Array.isArray(response.content)) {
+        answerText = response.content
+            .map(c => (typeof c === "string" ? c : c.text || ""))
+            .filter(Boolean)
+            .join("\n");
+    }
+
     const update = { messages: [response] };
-    if (typeof response.content === "string" && response.content.trim().length > 0) {
-        update.answer = response.content;
+    if (answerText.trim().length > 0) {
+        update.answer = answerText;
     }
     
     return update;
 };
 
 const evaluateNode = async (state) => {
+    if (state.answer && state.answer.trim().length > 30) {
+        return { isGoodAnswer: true, loopCount: 1 };
+    }
+
     const llm = new ChatGroq({ apiKey: process.env.GROQ_API_KEY, model: "llama-3.3-70b-versatile", temperature: 0 });
 
     const currentAnswer = state.answer || "I don't know based on the provided code or issues.";
@@ -165,15 +208,20 @@ If it's a good, helpful answer, reply exactly with: YES
 If it's a bad answer or says it doesn't know, reply with NO, followed by a better, broader search query (keywords) to search the codebase.
 Format: [YES/NO] | [New Search Keywords]`;
 
-    const response = await llm.invoke(prompt);
-    const output = response.content.trim();
-    
-    if (output.startsWith("YES")) {
+    try {
+        const response = await llm.invoke(prompt);
+        const output = (typeof response.content === 'string' ? response.content : '').trim();
+        
+        if (output.startsWith("YES")) {
+            return { isGoodAnswer: true, loopCount: 1 };
+        } else {
+            const parts = output.split("|");
+            const newQuery = parts.length > 1 ? parts[1].trim() : state.question;
+            return { isGoodAnswer: false, loopCount: 1, searchQuery: newQuery };
+        }
+    } catch (err) {
+        console.warn("Evaluator node error, accepting current answer:", err.message);
         return { isGoodAnswer: true, loopCount: 1 };
-    } else {
-        const parts = output.split("|");
-        const newQuery = parts.length > 1 ? parts[1].trim() : state.question;
-        return { isGoodAnswer: false, loopCount: 1, searchQuery: newQuery };
     }
 };
 
@@ -226,6 +274,23 @@ export const runAgent = async (userQuestion, rawRepoUrl) => {
         configurable: { repoUrl }
     });
     
-    return finalState.answer;
+    let finalAnswer = finalState.answer;
+    if (!finalAnswer && finalState.messages && finalState.messages.length > 0) {
+        for (let i = finalState.messages.length - 1; i >= 0; i--) {
+            const msg = finalState.messages[i];
+            const content = typeof msg.content === 'string' 
+                ? msg.content 
+                : Array.isArray(msg.content) 
+                    ? msg.content.map(c => c.text || '').join('\n') 
+                    : '';
+            if (content && content.trim()) {
+                finalAnswer = content;
+                break;
+            }
+        }
+    }
+
+    return finalAnswer || "I analyzed the repository context but could not format a response. Please try asking again.";
 };
+
 

@@ -84,12 +84,13 @@ export default function RepoSummaryCard({ summary, onSelectQuestion }) {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
+                className="overflow-x-auto overflow-y-auto max-h-[300px] rounded-2xl scrollbar-thin scrollbar-thumb-white/10"
               >
                 <MermaidDiagram chart={architectureDiagram} />
               </motion.div>
             )}
           </AnimatePresence>
+
         </div>
       )}
 

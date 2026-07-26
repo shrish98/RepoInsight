@@ -6,6 +6,7 @@ import fs from 'fs';
 import authRoutes from './routes/auth.js';
 import historyRoutes from './routes/history.js';
 import repoRoutes from './routes/repo.js';
+import connectDB from './config/db.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -61,17 +62,7 @@ app.get(/^(.*)$/, (req, res) => {
   res.sendFile(indexFile);
 });
 
-try {
-  if (process.env.MONGODB_URI) {
-    mongoose.set('bufferCommands', false);
-    await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 5000 });
-    console.log('Connected to MongoDB Atlas');
-  } else {
-    console.log('MONGODB_URI not found in environment.');
-  }
-} catch (error) {
-  console.error('MongoDB connection error:', error.message);
-}
+await connectDB();
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);

@@ -94,8 +94,14 @@ export function useChatSession(token) {
     e.preventDefault();
     if (!repoUrl) return;
 
+    if (!token || token === 'null' || token === 'undefined') {
+      setAnalysisStatus({ type: 'error', msg: 'You are not logged in. Please log in to analyze a repository.' });
+      return;
+    }
+
     setIsAnalyzing(true);
     setIsReady(false);
+
     setAnalysisStatus({ type: 'loading', msg: 'Cloning repository, generating architecture diagram & embedding chunks...' });
     setChatHistory([]);
     setRepoSummary(null);

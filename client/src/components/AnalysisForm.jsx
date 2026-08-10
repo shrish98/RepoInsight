@@ -15,14 +15,14 @@ export default function AnalysisForm({
       className="glass-panel p-6 rounded-3xl relative overflow-hidden shrink-0"
     >
       <form onSubmit={handleAnalyze} className="relative group">
-        <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-cyan-500 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
-        <div className="relative flex items-center bg-slate-900/80 rounded-2xl p-2 border border-white/10 backdrop-blur-md">
+        <div className="absolute -inset-0.5 bg-emerald-500/20 rounded-2xl blur-sm opacity-0 group-hover:opacity-100 transition duration-500"></div>
+        <div className="relative flex items-center bg-[#090E17]/90 rounded-2xl p-2 border border-slate-800 focus-within:border-emerald-500/50 backdrop-blur-md transition-colors">
           <Search className="w-5 h-5 text-slate-400 ml-4" />
           <input
             type="url"
             placeholder="https://github.com/facebook/react"
             required
-            className="flex-1 bg-transparent border-none text-slate-100 px-4 py-3 focus:outline-none placeholder:text-slate-500 text-lg"
+            className="flex-1 bg-transparent border-none text-slate-100 px-4 py-3 focus:outline-none placeholder:text-slate-500 text-lg font-normal"
             value={repoUrl}
             onChange={(e) => setRepoUrl(e.target.value)}
             disabled={isAnalyzing}
@@ -30,7 +30,7 @@ export default function AnalysisForm({
           <button
             type="submit"
             disabled={isAnalyzing}
-            className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 disabled:from-slate-700 disabled:to-slate-800 disabled:text-slate-400 text-white font-medium rounded-xl transition-all duration-300 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
+            className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-800 disabled:text-slate-500 text-slate-950 font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-emerald-500/20 flex items-center gap-2"
           >
             {isAnalyzing ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -41,6 +41,7 @@ export default function AnalysisForm({
           </button>
         </div>
       </form>
+
 
       <AnimatePresence>
         {analysisStatus && (

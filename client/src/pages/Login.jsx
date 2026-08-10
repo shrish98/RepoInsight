@@ -29,13 +29,13 @@ export default function Login() {
         animate={{ opacity: 1, y: 0 }}
         className="glass-panel p-8 rounded-3xl w-full max-w-md relative overflow-hidden"
       >
-        <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] rounded-full bg-indigo-600/10 blur-[80px] pointer-events-none" />
+        <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] rounded-full bg-emerald-500/10 blur-[80px] pointer-events-none" />
         
         <div className="text-center mb-8 relative z-10">
-          <div className="inline-flex p-3 bg-white/5 rounded-2xl border border-white/10 shadow-lg backdrop-blur-sm mb-4">
-            <Code2 className="w-8 h-8 text-indigo-400" />
+          <div className="inline-flex p-3 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 shadow-lg mb-4">
+            <Code2 className="w-8 h-8 text-emerald-400" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
+          <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Welcome Back</h1>
           <p className="text-slate-400">Sign in to your RepoInsight account</p>
         </div>
 
@@ -45,7 +45,7 @@ export default function Login() {
             <input 
               type="email" 
               required
-              className="w-full bg-slate-900/80 rounded-xl p-3 border border-white/10 text-white focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50"
+              className="w-full bg-[#090E17]/90 rounded-xl p-3 border border-slate-800 text-white focus:outline-none focus:border-emerald-500/50"
               value={email}
               onChange={e => setEmail(e.target.value)}
             />
@@ -55,7 +55,7 @@ export default function Login() {
             <input 
               type="password" 
               required
-              className="w-full bg-slate-900/80 rounded-xl p-3 border border-white/10 text-white focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50"
+              className="w-full bg-[#090E17]/90 rounded-xl p-3 border border-slate-800 text-white focus:outline-none focus:border-emerald-500/50"
               value={password}
               onChange={e => setPassword(e.target.value)}
             />
@@ -70,15 +70,16 @@ export default function Login() {
           <button 
             type="submit" 
             disabled={isLoading}
-            className="w-full py-3 mt-4 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white rounded-xl font-medium transition-all shadow-lg shadow-indigo-500/25 flex justify-center items-center gap-2 disabled:opacity-70"
+            className="w-full py-3 mt-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl font-semibold transition-all shadow-lg shadow-emerald-500/20 flex justify-center items-center gap-2 disabled:opacity-70"
           >
             {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sign In'}
           </button>
         </form>
 
         <p className="text-center text-slate-400 mt-6 text-sm relative z-10">
-          Don't have an account? <Link to="/register" className="text-cyan-400 hover:text-cyan-300">Sign up</Link>
+          Don't have an account? <Link to="/register" className="text-emerald-400 hover:text-emerald-300 font-medium">Sign up</Link>
         </p>
+
       </motion.div>
     </div>
   );

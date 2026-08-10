@@ -11,7 +11,7 @@ export default function ChatInput({
 }) {
   return (
     <form onSubmit={handleAskQuestion} className="relative mt-auto shrink-0 sticky bottom-0 z-20">
-      <div className="relative flex items-center bg-slate-900/80 rounded-2xl p-2 border border-white/10 backdrop-blur-xl shadow-lg focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/50 transition-all">
+      <div className="relative flex items-center bg-[#090E17]/95 rounded-2xl p-2 border border-slate-800 backdrop-blur-xl shadow-xl focus-within:border-emerald-500/50 transition-all">
         <input
           type="text"
           placeholder="Ask about authentication, database models, or architecture..."
@@ -38,11 +38,12 @@ export default function ChatInput({
         <button
           type="submit"
           disabled={isAsking || !isReady || !question.trim()}
-          className="p-4 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-xl transition-all duration-300 shadow-md shadow-cyan-500/20 flex items-center justify-center mr-1"
+          className="p-4 bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-800 disabled:text-slate-600 text-slate-950 rounded-xl transition-all duration-200 shadow-md shadow-emerald-500/20 flex items-center justify-center mr-1"
         >
-          <Send className="w-5 h-5 ml-1" />
+          <Send className="w-5 h-5" />
         </button>
       </div>
+
     </form>
   )
 }

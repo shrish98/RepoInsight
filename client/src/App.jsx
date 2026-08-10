@@ -38,8 +38,8 @@ function App() {
   return (
     <div className="h-screen mesh-bg text-slate-100 flex relative overflow-hidden">
       
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-600/20 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-cyan-600/20 blur-[120px] pointer-events-none" />
+      <div className="absolute top-[-10%] left-[-10%] w-[35%] h-[35%] rounded-full bg-emerald-500/10 blur-[140px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[35%] h-[35%] rounded-full bg-slate-700/20 blur-[140px] pointer-events-none" />
 
       <Sidebar 
         isSidebarOpen={isSidebarOpen}
@@ -59,14 +59,15 @@ function App() {
             animate={{ opacity: 1, y: 0 }}
             className="inline-flex items-center justify-center space-x-3"
           >
-            <div className="p-2 bg-white/5 rounded-xl border border-white/10 shadow-lg backdrop-blur-sm">
-              <Code2 className="w-6 h-6 text-indigo-400" />
+            <div className="p-2.5 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 shadow-lg shadow-emerald-950/20 backdrop-blur-md">
+              <Code2 className="w-6 h-6 text-emerald-400" />
             </div>
-            <h1 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-cyan-400 to-indigo-400 animate-gradient-x pb-1">
+            <h1 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-100 via-emerald-200 to-slate-100 pb-1">
               RepoInsight
             </h1>
           </motion.div>
         </header>
+
 
         <main className="w-full max-w-4xl flex flex-col gap-6 flex-1 pb-8">
           

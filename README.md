@@ -1,101 +1,67 @@
-# 🚀 RepoInsight
+# RepoInsight
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Active-brightgreen?style=for-the-badge&logo=amazonaws)](http://13.201.51.249:5000)
-[![Tech Stack](https://img.shields.io/badge/Stack-MERN%20%2B%20LangGraph-blue?style=for-the-badge)](http://13.201.51.249:5000)
+Ask questions about a GitHub repository and get answers grounded in its code.
 
-RepoInsight is an intelligent, full-stack application that allows you to chat directly with GitHub repositories. By leveraging a powerful RAG (Retrieval-Augmented Generation) pipeline and LangChain/LangGraph, RepoInsight fetches, analyzes, and indexes codebases, allowing you to ask complex questions about any repository's architecture, logic, and implementation.
+**Live:** [http://13.201.51.249:5000](http://13.201.51.249:5000)
 
-🔗 **Deployed Live on AWS EC2:** [http://13.201.51.249:5000](http://13.201.51.249:5000)
+## How it works
 
----
+**Indexing a repository.** RepoInsight reads the default branch through the GitHub API, skips dependencies, build output and binary files, and splits the rest into 1,000-character chunks with 200 characters of overlap. Each chunk is embedded with Google's `gemini-embedding-001` and stored in a MongoDB Atlas vector index. The language model then reads the file tree and `package.json` to write an overview, the stack, entry points, suggested questions and a Mermaid architecture diagram.
 
-## ✨ Features
+**Answering a question.** A LangGraph agent retrieves the most relevant chunks (vector search, with a keyword fallback), and `openai/gpt-oss-120b` on Groq writes an answer from them. It can also search the repository's GitHub issues. A second pass checks whether the answer actually addresses the question; if not, the agent searches again with new keywords, once.
 
-- **🧠 AI-Powered Code Analysis:** Input any public GitHub repository URL, and the internal RAG pipeline will clone, chunk, and embed the codebase into a vector database automatically.
-- **💬 Chat with your Code:** Ask questions about the analyzed repository in natural language. The AI agent acts as a knowledgeable pair programmer with complete context.
-- **🔐 User Authentication:** Secure user accounts and authentication flow built with JWT.
-- **📜 Chat History:** Saves your chat sessions so you can easily pick up right where you left off.
-- **🐳 Docker Production Ready:** Built with a multi-stage Docker build packaging the Vite frontend and Node/Express backend into a single deployment container.
+## Tech stack
 
----
+- **Frontend:** React 19, Vite, Tailwind CSS 4, React Router, Mermaid
+- **Backend:** Node.js, Express 5, MongoDB Atlas with Mongoose, LangChain and LangGraph, JWT auth
+- **Models:** `openai/gpt-oss-120b` via Groq, `gemini-embedding-001` via Google AI Studio
 
-## 🛠️ Tech Stack
+## Running locally
 
-* **Frontend:** React 19, Vite, TailwindCSS (v4), React Router, Framer Motion, Lucide Icons
-* **Backend:** Node.js & Express, MongoDB Atlas & Mongoose, LangChain & LangGraph (AI Orchestration), JWT Authentication
+You'll need Node.js 20+, a MongoDB Atlas cluster, a Groq API key, a Google AI Studio API key and a GitHub token.
 
----
+In Atlas, create a vector search index named `vector_index` on the `repoinsight.code_chunks` collection, over the `embedding` field (3,072 dimensions).
 
-## 🚀 Getting Started
-
-### Prerequisites
-- Node.js (v18 or higher recommended)
-- A MongoDB Atlas connection string
-- Relevant API Keys (Google Gemini / Groq) for the LangGraph agent
-
-### Local Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/shrish98/RepoInsight.git
-   cd RepoInsight
-   ```
-
-2. **Install all dependencies**
-   ```bash
-   npm install
-   cd client && npm install
-   cd ../server && npm install
-   cd ..
-   ```
-
-3. **Environment Setup**
-   Create a `.env` file in the `server/` directory:
-   ```env
-   PORT=5000
-   MONGODB_URI=your_mongodb_connection_string
-   JWT_SECRET=your_jwt_secret
-   GEMINI_API_KEY=your_gemini_api_key
-   GITHUB_TOKEN=your_github_token
-   GROQ_API_KEY=your_groq_api_key
-   ```
-
-4. **Running the App Locally**
-   Start both development servers concurrently from the root:
-   ```bash
-   npm run dev
-   ```
-   - Frontend: `http://localhost:5173`
-   - Backend: `http://localhost:5000`
-
----
-
-## 📦 Containerized Production Deployment
-
-To run and deploy the application in production using Docker:
-
-### 1. Build the Docker Image
-From the root directory, run the multi-stage build:
 ```bash
-docker build -t repoinsight .
+git clone https://github.com/shrish98/RepoInsight.git
+cd RepoInsight
+npm install
+cd client && npm install && cd ..
+cd server && npm install --legacy-peer-deps && cd ..
 ```
 
-### 2. Run the Container
-Run the container, exposing port `5000` and supplying your environment variables:
-```bash
-docker run -d \
-  -p 5000:5000 \
-  -e PORT=5000 \
-  -e MONGODB_URI="your_mongodb_uri" \
-  -e JWT_SECRET="your_jwt_secret" \
-  -e GEMINI_API_KEY="your_gemini_api_key" \
-  -e GITHUB_TOKEN="your_github_token" \
-  -e GROQ_API_KEY="your_groq_api_key" \
-  --name repoinsight_app \
-  repoinsight
+Create `server/.env`:
+
+```env
+PORT=5000
+MONGODB_URI=your_mongodb_connection_string
+JWT_SECRET=your_jwt_secret
+GEMINI_API_KEY=your_gemini_api_key
+GROQ_API_KEY=your_groq_api_key
+GITHUB_TOKEN=your_github_token
+# Optional. Defaults to openai/gpt-oss-120b. Change it when Groq retires a model.
+# GROQ_MODEL=openai/gpt-oss-120b
 ```
 
----
+Then start the client and server together:
 
-## 📜 License
-ISC License
+```bash
+npm run dev
+```
+
+The client runs on `http://localhost:5173` and proxies `/api` to the server on `http://localhost:5000`.
+
+## Deploying
+
+The Docker image serves the pre-built frontend from `public/`, so rebuild it after changing anything in `client/`:
+
+```bash
+npm run build                  # builds client/ into public/
+docker compose up -d --build   # reads server/.env
+```
+
+On the EC2 host, deploying a new version is `git pull` followed by the `docker compose` command above.
+
+## License
+
+ISC

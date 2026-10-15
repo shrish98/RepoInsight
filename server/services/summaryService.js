@@ -1,4 +1,4 @@
-import { ChatGroq } from '@langchain/groq';
+import { createChatModel } from '../config/llm.js';
 import { fetchRepoTree, fetchFileContent } from './githubService.js';
 import { RepoSummary } from '../models/RepoSummary.js';
 import { normalizeRepoUrl } from '../utils/urlHelper.js';
@@ -24,11 +24,7 @@ export const getOrGenerateSummary = async (rawRepoUrl) => {
             packageJsonText = await fetchFileContent(owner, repo, branch, pkgFile.path) || '';
         }
 
-        const llm = new ChatGroq({
-            apiKey: process.env.GROQ_API_KEY,
-            model: 'llama-3.3-70b-versatile',
-            temperature: 0.1
-        });
+        const llm = createChatModel({ temperature: 0.1 });
 
         const prompt = `You are a Principal Software Architect analyzing a GitHub repository.
 Repository: ${repoUrl}

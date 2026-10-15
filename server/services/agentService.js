@@ -1,6 +1,6 @@
 import { StateGraph, END, START } from "@langchain/langgraph";
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
-import { ChatGroq } from "@langchain/groq";
+import { createChatModel } from "../config/llm.js";
 import { MongoDBAtlasVectorSearch } from "@langchain/mongodb";
 import mongoose from 'mongoose';
 import { tool } from "@langchain/core/tools";
@@ -140,13 +140,34 @@ const retrieveNode = async (state) => {
     return { context: docs };
 };
 
-const generateNode = async (state, config) => {
-    const llm = new ChatGroq({ apiKey: process.env.GROQ_API_KEY, model: "llama-3.3-70b-versatile", temperature: 0 });
-    
-    const llmWithTools = llm.bindTools(tools);
+// Keeps a single question inside Groq's free-tier token budget (8k tokens/minute for gpt-oss-120b).
+const MAX_CONTEXT_CHUNKS = 12;
+// Stops generate -> tools -> generate from looping if the model keeps asking for issue searches.
+const MAX_TOOL_ROUNDS = 2;
 
-    const formattedContext = state.context.length > 0 
-        ? state.context.map(doc => `File: ${doc.metadata?.source || 'Unknown'}\nCode:\n${doc.pageContent}`).join("\n\n")
+// gpt-oss sometimes calls tools it was trained with but that we never declared
+// (e.g. "repo_browser.print_tree"); Groq rejects those requests with tool_use_failed.
+const isInvalidToolCall = (err) =>
+    err?.error?.error?.code === 'tool_use_failed' || /tool_use_failed|tool call validation failed/i.test(err?.message || '');
+
+// For a tool-less request, pass earlier issue-search results as plain text. Sending the raw
+// tool-call history makes the model try to call tools again, which Groq rejects.
+const toolResultsAsText = (messages = []) => {
+    const results = messages
+        .filter(m => m._getType?.() === 'tool')
+        .map(m => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content)))
+        .filter(Boolean);
+    return results.length > 0
+        ? [new HumanMessage(`Results from the GitHub issue search you ran:\n\n${results.join('\n\n')}`)]
+        : [];
+};
+
+const generateNode = async (state, config) => {
+    const llm = createChatModel();
+    const toolRounds = (state.messages || []).filter(m => m.tool_calls?.length > 0).length;
+
+    const formattedContext = state.context.length > 0
+        ? state.context.slice(0, MAX_CONTEXT_CHUNKS).map(doc => `File: ${doc.metadata?.source || 'Unknown'}\nCode:\n${doc.pageContent}`).join("\n\n")
         : "No code snippets were found for this repository.";
 
     const systemPrompt = `You are a Senior Software Engineer analyzing the GitHub repository "${state.repoUrl}".
@@ -155,23 +176,40 @@ Explain relevant architecture, API routes, database schemas, framework controlle
 
 Rules:
 1. Base your answer strictly on the provided codebase context.
-2. If you need to search GitHub issues or pull requests to answer the question, execute the tool directly.
+2. Only when the user asks about GitHub issues, bug reports, feature requests or pull requests, call
+   "github_issues_tool" directly. It searches issues, not code, so never use it to look for code.
+   It is the only tool you have. Never call any other tool name.
 3. NEVER tell the user to run internal functions or tool names like "github_issues_tool" in plain text.
 4. Do NOT hallucinate frameworks (e.g. do not state it is Next.js unless Next.js files are in the context).
 
 Code Context:
 ${formattedContext}`;
 
-    const llmMessages = [
-        new SystemMessage(systemPrompt),
-        new HumanMessage(state.question),
-        ...(state.messages || [])
-    ];
+    const baseMessages = [new SystemMessage(systemPrompt), new HumanMessage(state.question)];
 
+    const answerWithoutTools = async () => {
+        const messages = [...baseMessages, ...toolResultsAsText(state.messages)];
+        try {
+            return await llm.invoke(messages, config);
+        } catch (err) {
+            if (!isInvalidToolCall(err)) throw err;
+            return llm.invoke([...messages, new HumanMessage("No tools are available now. Answer directly in prose.")], config);
+        }
+    };
 
+    let response;
+    if (toolRounds < MAX_TOOL_ROUNDS) {
+        try {
+            response = await llm.bindTools(tools).invoke([...baseMessages, ...(state.messages || [])], config);
+        } catch (err) {
+            if (!isInvalidToolCall(err)) throw err;
+            console.warn("Model called an undeclared tool; answering without tools instead.");
+            response = await answerWithoutTools();
+        }
+    } else {
+        response = await answerWithoutTools();
+    }
 
-    const response = await llmWithTools.invoke(llmMessages, config);
-    
     let answerText = "";
     if (typeof response.content === "string") {
         answerText = response.content;
@@ -195,7 +233,7 @@ const evaluateNode = async (state) => {
         return { isGoodAnswer: true, loopCount: 1 };
     }
 
-    const llm = new ChatGroq({ apiKey: process.env.GROQ_API_KEY, model: "llama-3.3-70b-versatile", temperature: 0 });
+    const llm = createChatModel();
 
     const currentAnswer = state.answer || "I don't know based on the provided code or issues.";
 

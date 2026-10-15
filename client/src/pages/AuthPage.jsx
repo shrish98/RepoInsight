@@ -1,13 +1,22 @@
 import { useContext, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import Wordmark from '../components/Wordmark';
+import GithubMark from '../components/GithubMark';
+
+// Reasons the server's OAuth callback can send back in ?error=
+const githubErrors = {
+  github_denied: 'GitHub sign-in was cancelled.',
+  github_state: 'That sign-in attempt expired. Please try again.',
+  github_failed: 'GitHub sign-in didn’t work. Try again, or use your email below.',
+  github_unavailable: 'GitHub sign-in isn’t set up on this server yet. Use your email for now.',
+};
 
 const copy = {
   login: {
     title: 'Sign in',
     intro: 'Pick up where you left off.',
-    submit: 'Sign in',
+    submit: 'Sign in with email',
     busy: 'Signing in…',
     switchText: 'New here?',
     switchLink: 'Create an account',
@@ -16,8 +25,8 @@ const copy = {
   },
   register: {
     title: 'Create an account',
-    intro: 'An email and a password is all it takes.',
-    submit: 'Create account',
+    intro: 'One click with GitHub, or an email and a password.',
+    submit: 'Create account with email',
     busy: 'Creating account…',
     switchText: 'Already have an account?',
     switchLink: 'Sign in',
@@ -33,6 +42,8 @@ export default function AuthPage({ mode }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchParams] = useSearchParams();
+  const githubError = githubErrors[searchParams.get('error')];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -58,7 +69,24 @@ export default function AuthPage({ mode }) {
           <h1 className="text-2xl font-semibold tracking-tight">{text.title}</h1>
           <p className="mt-2 text-ink-2">{text.intro}</p>
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+          {githubError && (
+            <p role="alert" className="mt-6 rounded-md border border-danger/20 bg-danger-soft px-3 py-2 text-sm text-danger">
+              {githubError}
+            </p>
+          )}
+
+          {/* A plain link: the server starts the OAuth redirect, so no JavaScript is involved. */}
+          <a href="/api/auth/github" className="btn-primary mt-8 w-full py-2.5">
+            <GithubMark /> Continue with GitHub
+          </a>
+
+          <div className="my-7 flex items-center gap-3 text-xs text-ink-3" aria-hidden="true">
+            <span className="h-px flex-1 bg-line" />
+            or use email
+            <span className="h-px flex-1 bg-line" />
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label htmlFor="email" className="mb-1.5 block text-sm font-medium">
                 Email
@@ -82,6 +110,7 @@ export default function AuthPage({ mode }) {
                 type="password"
                 required
                 minLength={mode === 'register' ? 8 : undefined}
+                maxLength={72}
                 autoComplete={text.passwordAutocomplete}
                 aria-describedby={mode === 'register' ? 'password-hint' : undefined}
                 className="field"
@@ -101,8 +130,8 @@ export default function AuthPage({ mode }) {
               </p>
             )}
 
-            <button type="submit" disabled={isLoading} className="btn-primary w-full py-2.5">
-              {isLoading && <span className="spinner border-white/40 border-t-white" />}
+            <button type="submit" disabled={isLoading} className="btn-secondary w-full py-2.5">
+              {isLoading && <span className="spinner" />}
               {isLoading ? text.busy : text.submit}
             </button>
           </form>

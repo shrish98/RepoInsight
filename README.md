@@ -13,7 +13,8 @@ Ask questions about a GitHub repository and get answers grounded in its code.
 ## Tech stack
 
 - **Frontend:** React 19, Vite, Tailwind CSS 4, React Router, Mermaid
-- **Backend:** Node.js, Express 5, MongoDB Atlas with Mongoose, LangChain and LangGraph, JWT auth
+- **Backend:** Node.js, Express 5, MongoDB Atlas with Mongoose, LangChain and LangGraph
+- **Auth:** Sign in with GitHub (OAuth) or email and password, with JWT sessions
 - **Models:** `openai/gpt-oss-120b` via Groq, `gemini-embedding-001` via Google AI Studio
 
 ## Running locally
@@ -35,12 +36,25 @@ Create `server/.env`:
 ```env
 PORT=5000
 MONGODB_URI=your_mongodb_connection_string
-JWT_SECRET=your_jwt_secret
+JWT_SECRET=a_long_random_string
 GEMINI_API_KEY=your_gemini_api_key
 GROQ_API_KEY=your_groq_api_key
 GITHUB_TOKEN=your_github_token
+
+# Sign in with GitHub (see below)
+GITHUB_CLIENT_ID=your_oauth_app_client_id
+GITHUB_CLIENT_SECRET=your_oauth_app_client_secret
+# Only needed when the app is reached through a proxy, e.g. local development:
+# GITHUB_CALLBACK_URL=http://localhost:5173/api/auth/github/callback
+
 # Optional. Defaults to openai/gpt-oss-120b. Change it when Groq retires a model.
 # GROQ_MODEL=openai/gpt-oss-120b
+```
+
+The server won't start without `JWT_SECRET`, and warns if it's shorter than 32 characters. Generate one with:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
 Then start the client and server together:
@@ -50,6 +64,15 @@ npm run dev
 ```
 
 The client runs on `http://localhost:5173` and proxies `/api` to the server on `http://localhost:5000`.
+
+### Sign in with GitHub
+
+Create an OAuth app under GitHub → Settings → Developer settings → OAuth Apps, and set its **Authorization callback URL** to the server's `/api/auth/github/callback`:
+
+- Production: `http://13.201.51.249:5000/api/auth/github/callback`
+- Local development: `http://localhost:5173/api/auth/github/callback`, plus `GITHUB_CALLBACK_URL` set to the same value
+
+An OAuth app only accepts one callback URL, so use a separate app for local development. RepoInsight asks for `read:user` and `user:email` only. It never stores the GitHub access token, and links a GitHub sign-in to an existing email account only when GitHub reports that email as verified. If the client ID or secret is missing, the sign-in page says so and email sign-in keeps working.
 
 ## Deploying
 

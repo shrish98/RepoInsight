@@ -80,7 +80,14 @@ export default function Sidebar({
         </ul>
 
         <div className="flex items-center justify-between gap-3 border-t border-line px-4 py-3">
-          <span className="truncate text-sm text-ink-2">{user?.email ?? 'Signed in'}</span>
+          <span className="flex min-w-0 items-center gap-2.5">
+            {user?.avatarUrl && (
+              <img src={user.avatarUrl} alt="" width="24" height="24" className="h-6 w-6 shrink-0 rounded-full border border-line" />
+            )}
+            <span className="truncate text-sm text-ink-2" title={user?.email}>
+              {user?.githubLogin ?? user?.email ?? 'Signed in'}
+            </span>
+          </span>
           <button type="button" onClick={logout} className="shrink-0 text-sm text-ink-2 hover:text-ink">
             Sign out
           </button>

@@ -1,0 +1,39 @@
+# RepoInsight behind Caddy, served over HTTPS on a free hostname (e.g. a DuckDNS subdomain).
+#
+#   echo "SITE_ADDRESS=yourname.duckdns.org" > .env
+#   docker compose -f docker-compose.https.yml up -d --build
+#
+# The app is only reachable through Caddy here; port 5000 isn't published.
+services:
+  repoinsight:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - server/.env
+    environment:
+      # Caddy terminates TLS, so trust its X-Forwarded-* headers for the protocol and client IP.
+      TRUST_PROXY: "1"
+    expose:
+      - "5000"
+    restart: always
+
+  caddy:
+    image: caddy:2.9
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?Set SITE_ADDRESS in .env to your hostname, e.g. repoinsight.duckdns.org}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - repoinsight
+    restart: always
+
+volumes:
+  # Holds the certificates, so restarts don't request new ones.
+  caddy_data:
+  caddy_config:

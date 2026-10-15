@@ -11,6 +11,11 @@ import connectDB from './config/db.js';
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Behind a reverse proxy (Caddy in docker-compose.https.yml), read the real protocol and client IP
+// from X-Forwarded-* headers. Only enable this when the app isn't reachable directly, or those
+// headers could be spoofed to dodge the login rate limit.
+if (process.env.TRUST_PROXY === '1') app.set('trust proxy', 1);
+
 // Middleware
 app.use(cors());
 app.use(express.json());

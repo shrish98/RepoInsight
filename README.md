@@ -2,7 +2,7 @@
 
 Ask questions about a GitHub repository and get answers grounded in its code.
 
-**Live:** [http://13.201.51.249:5000](http://13.201.51.249:5000)
+**Live:** [http://13.201.51.249:5000](http://13.201.51.249:5000) (HTTPS setup below)
 
 ## How it works
 
@@ -84,6 +84,23 @@ docker compose up -d --build   # reads server/.env
 ```
 
 On the EC2 host, deploying a new version is `git pull` followed by the `docker compose` command above.
+
+### HTTPS without buying a domain
+
+`docker-compose.https.yml` puts [Caddy](https://caddyserver.com) in front of the app. Caddy gets a free Let's Encrypt certificate and renews it on its own. All it needs is a hostname that points at the server, and a free [DuckDNS](https://www.duckdns.org) subdomain works.
+
+1. Sign in to DuckDNS, create a subdomain (e.g. `repoinsight-yourname`), and set its IP to the EC2 instance's public IP.
+2. In the EC2 security group, allow inbound TCP 80 and 443. Once HTTPS works, remove the rule for 5000.
+3. Point the GitHub OAuth app's callback URL at `https://repoinsight-yourname.duckdns.org/api/auth/github/callback`.
+4. On the server:
+
+   ```bash
+   docker compose down                                        # stop the plain-HTTP setup
+   echo "SITE_ADDRESS=repoinsight-yourname.duckdns.org" > .env
+   docker compose -f docker-compose.https.yml up -d --build
+   ```
+
+The first request can take a few seconds while the certificate is issued. If the instance's public IP changes (for example after a stop and start), update it on DuckDNS, or attach an Elastic IP so it doesn't change.
 
 ## License
 

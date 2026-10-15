@@ -1,0 +1,6 @@
+# HTTPS in front of RepoInsight. Caddy gets and renews a Let's Encrypt certificate for
+# SITE_ADDRESS automatically, as long as that hostname points at this server and ports 80 and 443 are open.
+{$SITE_ADDRESS} {
+	encode zstd gzip
+	reverse_proxy repoinsight:5000
+}

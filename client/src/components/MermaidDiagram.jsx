@@ -1,26 +1,29 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import mermaid from 'mermaid';
 import { Maximize2, X } from 'lucide-react';
 
 mermaid.initialize({
   startOnLoad: false,
-  theme: 'dark',
-  securityLevel: 'loose',
+  // The diagram source is model output, so keep Mermaid from running any embedded HTML or click handlers.
+  securityLevel: 'strict',
+  theme: 'base',
   themeVariables: {
-    darkMode: true,
-    primaryColor: '#6366f1',
-    primaryTextColor: '#f8fafc',
-    primaryBorderColor: '#818cf8',
-    lineColor: '#38bdf8',
-    secondaryColor: '#0f172a',
-    tertiaryColor: '#1e293b'
-  }
+    fontFamily: '"IBM Plex Sans", ui-sans-serif, sans-serif',
+    fontSize: '14px',
+    primaryColor: '#ffffff',
+    primaryTextColor: '#17181b',
+    primaryBorderColor: '#17181b',
+    lineColor: '#6b6f78',
+    secondaryColor: '#f5f5f2',
+    tertiaryColor: '#eef1fb',
+    edgeLabelBackground: '#ffffff',
+  },
 });
 
 const sanitizeMermaidChart = (chartText) => {
   if (!chartText || typeof chartText !== 'string') return '';
-  
+
   let clean = chartText
     .replace(/^```mermaid/i, '')
     .replace(/^```/g, '')
@@ -31,129 +34,88 @@ const sanitizeMermaidChart = (chartText) => {
     clean = `graph TD\n${clean}`;
   }
 
-  clean = clean.replace(/([A-Za-z0-9_]+)\[([^"\n]+?)\]/g, (match, nodeId, label) => {
-    if (label.startsWith('"') && label.endsWith('"')) {
-      return match;
-    }
-    const safeLabel = label.replace(/"/g, "'");
-    return `${nodeId}["${safeLabel}"]`;
-  });
+  // Models often write edge labels as `-->|label|> B`; the trailing ">" is a syntax error.
+  clean = clean.replace(/\|([^|\n]*)\|>/g, '|$1|');
 
-  return clean;
+  // Quote bare labels; the model sometimes puts parentheses or slashes in them, which breaks parsing.
+  return clean.replace(/([A-Za-z0-9_]+)\[([^"\n]+?)\]/g, (match, nodeId, label) => {
+    if (label.startsWith('"') && label.endsWith('"')) return match;
+    return `${nodeId}["${label.replace(/"/g, "'")}"]`;
+  });
 };
 
-const DEFAULT_FALLBACK_DIAGRAM = `graph TD
-  Client["User Interface / Web Client"] --> Router["App Routing & Middleware"]
-  Router --> Auth["Auth & Session Controller"]
-  Router --> Services["Core Application Services"]
-  Services --> DB[("Database & External APIs")]`;
+const FALLBACK_DIAGRAM = `graph TD
+  Client["User interface"] --> Router["Routing and middleware"]
+  Router --> Auth["Auth"]
+  Router --> Services["Core services"]
+  Services --> DB[("Database and external APIs")]`;
+
+// Mermaid breaks when two renders overlap (e.g. the inline and full-screen copies, or React
+// StrictMode running effects twice), so every render goes through one queue with a unique id.
+let renderQueue = Promise.resolve();
+let renderCount = 0;
+
+function render(node, chart) {
+  renderQueue = renderQueue.then(async () => {
+    for (const code of [sanitizeMermaidChart(chart) || FALLBACK_DIAGRAM, FALLBACK_DIAGRAM]) {
+      try {
+        const { svg } = await mermaid.render(`repo-diagram-${++renderCount}`, code);
+        if (node.isConnected) node.innerHTML = svg;
+        return;
+      } catch (err) {
+        console.warn('Mermaid could not render this diagram, trying the fallback.', err);
+      }
+    }
+  });
+}
 
 export default function MermaidDiagram({ chart }) {
-  const containerRef = useRef(null);
-  const modalContainerRef = useRef(null);
+  const inlineRef = useRef(null);
+  const modalRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
-    if (!containerRef.current) return;
-    let isMounted = true;
-
-    const renderInline = async () => {
-      const targetCode = sanitizeMermaidChart(chart) || DEFAULT_FALLBACK_DIAGRAM;
-      try {
-        if (containerRef.current) {
-          containerRef.current.removeAttribute('data-processed');
-          containerRef.current.innerHTML = targetCode;
-          await mermaid.run({ nodes: [containerRef.current] });
-        }
-      } catch (err) {
-        console.warn('Primary Mermaid run warning, falling back:', err);
-        try {
-          if (containerRef.current && isMounted) {
-            containerRef.current.removeAttribute('data-processed');
-            containerRef.current.innerHTML = DEFAULT_FALLBACK_DIAGRAM;
-            await mermaid.run({ nodes: [containerRef.current] });
-          }
-        } catch (fallbackErr) {
-          console.error("Fallback mermaid run error:", fallbackErr);
-        }
-      }
-    };
-
-    renderInline();
-
-    return () => {
-      isMounted = false;
-    };
+    if (inlineRef.current) render(inlineRef.current, chart);
   }, [chart]);
 
   useEffect(() => {
-    if (isFullscreen && modalContainerRef.current) {
-
-      const renderModalChart = async () => {
-        const targetCode = sanitizeMermaidChart(chart) || DEFAULT_FALLBACK_DIAGRAM;
-        try {
-          modalContainerRef.current.removeAttribute('data-processed');
-          modalContainerRef.current.innerHTML = targetCode;
-          await mermaid.run({ nodes: [modalContainerRef.current] });
-        } catch (err) {
-          if (modalContainerRef.current) {
-            modalContainerRef.current.removeAttribute('data-processed');
-            modalContainerRef.current.innerHTML = DEFAULT_FALLBACK_DIAGRAM;
-            await mermaid.run({ nodes: [modalContainerRef.current] });
-          }
-        }
-      };
-      renderModalChart();
-    }
+    if (!isFullscreen) return undefined;
+    if (modalRef.current) render(modalRef.current, chart);
+    const onKey = (e) => e.key === 'Escape' && setIsFullscreen(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [isFullscreen, chart]);
 
   return (
     <>
-      {/* Inline Container */}
-      <div className="relative group w-full bg-slate-900/80 rounded-2xl p-6 border border-white/10 overflow-x-auto min-h-[160px] flex items-center justify-center">
+      <div className="relative rounded-md border border-line bg-surface">
         <button
           type="button"
           onClick={() => setIsFullscreen(true)}
-          className="absolute top-3 right-3 p-2 bg-slate-800/90 hover:bg-slate-700 text-slate-300 rounded-xl border border-white/10 transition-colors z-10 opacity-80 group-hover:opacity-100 flex items-center gap-1.5 text-xs shadow-md"
-          title="Expand Fullscreen"
+          className="absolute right-2 top-2 z-10 flex items-center gap-1.5 rounded border border-line bg-surface px-2 py-1 text-xs text-ink-2 hover:text-ink"
         >
-          <Maximize2 className="w-4 h-4 text-cyan-400" />
-          <span className="hidden sm:inline">Expand</span>
+          <Maximize2 className="h-3.5 w-3.5" /> Expand
         </button>
-
-        <div 
-          ref={containerRef} 
-          className="mermaid w-full flex justify-center items-center font-mono text-sm [&>svg]:max-w-full [&>svg]:h-auto"
-        />
+        <div className="max-h-[320px] overflow-auto p-4 pt-10">
+          <div ref={inlineRef} className="flex justify-center [&>svg]:h-auto [&>svg]:max-w-full" />
+        </div>
       </div>
 
-      {/* Fullscreen Portal Modal */}
-      {isFullscreen && createPortal(
-        <div className="fixed inset-0 z-[9999] bg-slate-950/90 backdrop-blur-2xl p-4 md:p-10 flex items-center justify-center overflow-auto animate-in fade-in duration-200">
-          <div className="relative w-full max-w-6xl bg-slate-900 border border-indigo-500/40 rounded-3xl p-8 shadow-2xl flex flex-col items-center justify-center min-h-[600px] my-auto">
-            <button
-              type="button"
-              onClick={() => setIsFullscreen(false)}
-              className="absolute top-4 right-4 p-3 bg-slate-800 hover:bg-rose-600/30 text-slate-300 hover:text-rose-300 rounded-2xl border border-white/10 hover:border-rose-500/40 transition-all z-10 flex items-center gap-2 font-semibold text-xs"
-            >
-              <X className="w-4 h-4" /> Close Fullscreen
-            </button>
-
-            <div className="w-full text-center mb-4">
-              <h3 className="text-lg font-bold text-white">System Architecture Flowchart</h3>
-              <p className="text-xs text-slate-400">Interactive component & data flow diagram</p>
+      {isFullscreen &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex flex-col bg-page" role="dialog" aria-modal="true" aria-label="Architecture diagram">
+            <div className="flex h-14 shrink-0 items-center justify-between border-b border-line bg-surface px-5">
+              <p className="font-medium">Architecture</p>
+              <button type="button" onClick={() => setIsFullscreen(false)} className="btn-secondary px-3 py-1.5" autoFocus>
+                <X className="h-4 w-4" /> Close
+              </button>
             </div>
-
-            <div className="w-full flex justify-center items-center overflow-auto p-4 bg-slate-950/50 rounded-2xl border border-white/5 min-h-[400px]">
-              <div 
-                ref={modalContainerRef}
-                className="mermaid w-full flex justify-center items-center font-mono text-sm [&>svg]:max-w-full [&>svg]:max-h-[75vh] [&>svg]:h-auto"
-              />
+            <div className="flex-1 overflow-auto p-6">
+              <div ref={modalRef} className="flex min-h-full items-center justify-center [&>svg]:h-auto [&>svg]:max-w-full" />
             </div>
-          </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          document.body,
+        )}
     </>
   );
 }

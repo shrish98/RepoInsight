@@ -23,7 +23,7 @@ export default function Composer({ handleAskQuestion, question, setQuestion, isA
   const disabled = isAsking || !isReady;
 
   return (
-    <form onSubmit={handleAskQuestion} className="shrink-0 border-t border-line bg-page px-4 pb-4 pt-3 sm:px-6">
+    <form onSubmit={handleAskQuestion} className="shrink-0 bg-white px-4 pb-4 pt-2 sm:px-6">
       <div className="mx-auto max-w-3xl">
         {suggestions.length > 0 && chatHistory.length === 0 && (
           <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
@@ -33,7 +33,7 @@ export default function Composer({ handleAskQuestion, question, setQuestion, isA
                 type="button"
                 onClick={() => handleAskQuestion(null, q)}
                 disabled={disabled}
-                className="shrink-0 rounded-full border-[1.5px] border-line-strong bg-surface px-3 py-1 text-[13.5px] text-ink-2 hover:border-accent hover:text-accent disabled:opacity-50"
+                className="shrink-0 rounded-full border border-line bg-white px-3 py-1 text-[13px] text-ink-2 transition hover:border-accent hover:text-accent disabled:opacity-50"
               >
                 {q}
               </button>
@@ -41,7 +41,7 @@ export default function Composer({ handleAskQuestion, question, setQuestion, isA
           </div>
         )}
 
-        <div className="flex items-end gap-1.5 rounded-xl border-[1.5px] border-line-strong bg-white p-1.5 shadow-[0_8px_20px_-16px_rgb(31_39_82/0.5)] focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15">
+        <div className="rounded-xl border border-line bg-white shadow-[0_1px_2px_rgb(31_35_40/0.06),0_8px_24px_-16px_rgb(31_35_40/0.3)] transition focus-within:border-accent focus-within:ring-[3px] focus-within:ring-accent/15">
           <label htmlFor="question" className="sr-only">
             Your question
           </label>
@@ -49,24 +49,26 @@ export default function Composer({ handleAskQuestion, question, setQuestion, isA
             ref={textareaRef}
             id="question"
             rows={1}
-            placeholder={isReady ? 'Ask a question…' : 'Analyze a repository first'}
-            className="max-h-40 min-h-[40px] flex-1 resize-none bg-transparent px-2.5 py-2 text-[15px] leading-6 placeholder:text-ink-3 focus:outline-none"
+            placeholder={isReady ? 'Ask a question about this repository…' : 'Analyze a repository first'}
+            className="block max-h-40 min-h-[48px] w-full resize-none bg-transparent px-3.5 pb-1 pt-3 text-[15px] leading-6 placeholder:text-ink-3 focus:outline-none"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={onKeyDown}
             disabled={disabled}
           />
-          <VoiceChatControls
-            setQuestion={setQuestion}
-            isAsking={isAsking}
-            isReady={isReady}
-            latestAgentMessage={latest?.role === 'agent' && !latest.error ? latest.text : ''}
-          />
-          <button type="submit" disabled={disabled || !question.trim()} className="btn-primary h-10 shrink-0">
-            Ask
-          </button>
+          <div className="flex items-center gap-1 px-2 pb-2">
+            <VoiceChatControls
+              setQuestion={setQuestion}
+              isAsking={isAsking}
+              isReady={isReady}
+              latestAgentMessage={latest?.role === 'agent' && !latest.error ? latest.text : ''}
+            />
+            <span className="ml-auto mr-2 hidden text-xs text-ink-3 sm:inline">Enter to send · Shift + Enter for a new line</span>
+            <button type="submit" disabled={disabled || !question.trim()} className="btn-primary ml-auto h-9 shrink-0 sm:ml-0">
+              Ask
+            </button>
+          </div>
         </div>
-        <p className="mt-1.5 hidden text-xs text-ink-3 sm:block">Enter to send · Shift + Enter for a new line</p>
       </div>
     </form>
   );

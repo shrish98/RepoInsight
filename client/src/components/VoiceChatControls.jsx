@@ -14,7 +14,7 @@ const cleanMarkdownForTTS = (text) => {
     .trim();
 };
 
-const iconButton = 'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors disabled:opacity-40';
+const iconButton = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors disabled:opacity-40';
 
 export default function VoiceChatControls({ setQuestion, isAsking, isReady, latestAgentMessage }) {
   const [isListening, setIsListening] = useState(false);
@@ -86,7 +86,7 @@ export default function VoiceChatControls({ setQuestion, isAsking, isReady, late
           aria-label={isListening ? 'Stop listening' : 'Ask out loud'}
           className={`${iconButton} ${isListening ? 'bg-danger-soft text-danger' : 'text-ink-2 hover:bg-sunken hover:text-ink'}`}
         >
-          {isListening ? <MicOff className="h-[18px] w-[18px]" /> : <Mic className="h-[18px] w-[18px]" />}
+          {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
         </button>
       )}
       <button
@@ -97,7 +97,7 @@ export default function VoiceChatControls({ setQuestion, isAsking, isReady, late
         aria-label={isSpeechEnabled ? 'Stop reading answers aloud' : 'Read answers aloud'}
         className={`${iconButton} ${isSpeechEnabled ? 'bg-accent-soft text-accent' : 'text-ink-2 hover:bg-sunken hover:text-ink'}`}
       >
-        {isSpeechEnabled ? <Volume2 className="h-[18px] w-[18px]" /> : <VolumeX className="h-[18px] w-[18px]" />}
+        {isSpeechEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
       </button>
     </div>
   );

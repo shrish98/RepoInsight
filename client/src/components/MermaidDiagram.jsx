@@ -10,20 +10,20 @@ mermaid.initialize({
   securityLevel: 'strict',
   theme: 'base',
   themeVariables: {
-    fontFamily: '"Barlow", ui-sans-serif, sans-serif',
+    fontFamily: '"Mona Sans", ui-sans-serif, sans-serif',
     fontSize: '14px',
-    primaryColor: '#fffdf8',
-    primaryTextColor: '#1f2752',
-    primaryBorderColor: '#3b4fa0',
-    lineColor: '#3b4fa0',
-    secondaryColor: '#f6f3ea',
-    tertiaryColor: '#e6e9f6',
-    edgeLabelBackground: '#fbfaf4',
+    primaryColor: '#ffffff',
+    primaryTextColor: '#1f2328',
+    primaryBorderColor: '#d1d9e0',
+    lineColor: '#818b98',
+    secondaryColor: '#f6f8fa',
+    tertiaryColor: '#eff2f5',
+    edgeLabelBackground: '#f6f8fa',
   },
   themeCSS: `
     .node rect, .node polygon { rx: 8px; ry: 8px; }
     .nodeLabel { font-weight: 600; }
-    .edgeLabel { font-family: "Overpass Mono", monospace; font-size: 11px; color: #4a5280; }
+    .edgeLabel { font-family: "JetBrains Mono", monospace; font-size: 11px; color: #59636e; }
   `,
 });
 
@@ -114,11 +114,11 @@ export default function MermaidDiagram({ chart }) {
 
   return (
     <>
-      <div className="gridpaper relative overflow-hidden rounded-lg border-[1.5px] border-accent">
+      <div className="relative overflow-hidden rounded-xl border border-line bg-subtle">
         <button
           type="button"
           onClick={() => setIsFullscreen(true)}
-          className="absolute right-2 top-2 z-10 flex items-center gap-1.5 rounded-md border-[1.5px] border-accent-soft bg-surface px-2 py-1 text-xs font-semibold text-accent hover:border-accent"
+          className="absolute right-2 top-2 z-10 flex items-center gap-1.5 rounded-md border border-line bg-white px-2 py-1 text-xs font-semibold text-ink-2 shadow-[0_1px_0_rgb(31_35_40/0.04)] hover:text-ink"
         >
           <Maximize2 className="h-3.5 w-3.5" /> Expand
         </button>
@@ -129,14 +129,14 @@ export default function MermaidDiagram({ chart }) {
 
       {isFullscreen &&
         createPortal(
-          <div className="fixed inset-0 z-50 flex flex-col bg-page" role="dialog" aria-modal="true" aria-label="Architecture diagram">
+          <div className="pop fixed inset-0 z-50 flex flex-col bg-white" role="dialog" aria-modal="true" aria-label="Architecture diagram">
             <div className="flex h-14 shrink-0 items-center justify-between border-b border-line bg-surface px-5">
-              <p className="font-display text-lg font-bold">Architecture</p>
+              <p className="text-base font-bold">Architecture</p>
               <button type="button" onClick={() => setIsFullscreen(false)} className="btn-secondary px-3 py-1.5" autoFocus>
                 <X className="h-4 w-4" /> Close
               </button>
             </div>
-            <div className="gridpaper flex-1 overflow-auto p-6">
+            <div className="flex-1 overflow-auto bg-subtle p-6">
               <div ref={modalRef} className="flex min-h-full items-center justify-center [&>svg]:h-auto [&>svg]:max-w-full" />
             </div>
           </div>,

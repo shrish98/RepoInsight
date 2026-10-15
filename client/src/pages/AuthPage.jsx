@@ -57,7 +57,7 @@ export default function AuthPage({ mode }) {
   };
 
   return (
-    <div className="grid min-h-screen bg-page lg:grid-cols-2">
+    <div className="grid min-h-screen bg-white lg:grid-cols-[1fr_1.05fr]">
       <div className="flex flex-col">
       <header className="flex h-16 w-full items-center px-5 sm:px-10">
         <Link to="/" aria-label="RepoInsight home">
@@ -67,7 +67,9 @@ export default function AuthPage({ mode }) {
 
       <main className="flex flex-1 items-start justify-center px-5 pb-16 pt-8 sm:px-10 sm:pt-16 lg:justify-start">
         <div className="w-full max-w-sm">
-          <h1 className="font-display text-[2.1rem] font-bold leading-tight">{text.title}</h1>
+          <h1 className="rise text-[2rem] font-[760] leading-tight tracking-[-0.025em]" style={{ fontStretch: '108%' }}>
+            {text.title}
+          </h1>
           <p className="mt-2 text-ink-2">{text.intro}</p>
 
           {githubError && (
@@ -77,7 +79,7 @@ export default function AuthPage({ mode }) {
           )}
 
           {/* A plain link: the server starts the OAuth redirect, so no JavaScript is involved. */}
-          <a href="/api/auth/github" className="btn-dark mt-8 w-full py-2.5">
+          <a href="/api/auth/github" className="btn-primary mt-8 h-11 w-full bg-ink shadow-none hover:bg-[#32383f]">
             <GithubMark className="h-[18px] w-[18px]" /> Continue with GitHub
           </a>
 
@@ -131,15 +133,15 @@ export default function AuthPage({ mode }) {
               </p>
             )}
 
-            <button type="submit" disabled={isLoading} className="btn-primary w-full py-2.5">
-              {isLoading && <span className="spinner border-white/40 border-t-white" />}
+            <button type="submit" disabled={isLoading} className="btn-secondary h-11 w-full">
+              {isLoading && <span className="spinner" />}
               {isLoading ? text.busy : text.submit}
             </button>
           </form>
 
           <p className="mt-6 text-sm text-ink-2">
             {text.switchText}{' '}
-            <Link to={text.switchTo} className="font-semibold text-accent underline decoration-accent/30 underline-offset-4 hover:decoration-accent">
+            <Link to={text.switchTo} className="font-semibold text-link hover:underline">
               {text.switchLink}
             </Link>
           </p>
@@ -152,47 +154,29 @@ export default function AuthPage({ mode }) {
   );
 }
 
-const panelNodes = [
-  { x: 6, w: 120, label: 'Client', layer: 'frontend' },
-  { x: 164, w: 122, label: 'API', layer: 'api' },
-  { x: 324, w: 90, label: 'Jobs', layer: 'jobs' },
-];
-
-// Wide screens only: a reminder of what's on the other side of the sign-in.
+// Wide screens only: the same dark hero as the landing page, with a glimpse of an answer.
 function SidePanel() {
   return (
-    <aside className="gridpaper hidden flex-col justify-center gap-6 border-l-[1.5px] border-accent px-12 lg:flex" aria-hidden="true">
-      <p className="max-w-md font-display text-[1.9rem] font-bold leading-tight">Paste a repo, get the drawing, ask anything.</p>
-      <svg viewBox="0 0 420 150" className="w-full max-w-[420px]">
-        <g fill="none" stroke="#3b4fa0" strokeWidth="1.5">
-          <path d="M126 34 H158 M286 34 H318 M225 58 V90" />
-          <path d="M152 29 l7 5 -7 5 M312 29 l7 5 -7 5 M220 84 l5 7 5 -7" />
-        </g>
-        {panelNodes.map((n) => (
-          <g key={n.label} className={`tint-${n.layer}`}>
-            <rect x={n.x} y="12" width={n.w} height="44" rx="8" strokeWidth="1.5" style={{ fill: 'var(--tint-fill)', stroke: 'var(--tint-line)' }} />
-            <text x={n.x + n.w / 2} y="35" textAnchor="middle" dominantBaseline="middle" fontFamily="Barlow" fontSize="14" fontWeight="600" style={{ fill: 'var(--tint-ink)' }}>
-              {n.label}
-            </text>
-          </g>
-        ))}
-        <g className="tint-data">
-          <path d="M164 98 h122 v30 a61 9 0 0 1 -122 0 z" strokeWidth="1.5" style={{ fill: 'var(--tint-fill)', stroke: 'var(--tint-line)' }} />
-          <ellipse cx="225" cy="98" rx="61" ry="9" strokeWidth="1.5" style={{ fill: 'var(--tint-fill)', stroke: 'var(--tint-line)' }} />
-          <text x="225" y="120" textAnchor="middle" dominantBaseline="middle" fontFamily="Barlow" fontSize="14" fontWeight="600" style={{ fill: 'var(--tint-ink)' }}>
-            Data
-          </text>
-        </g>
-        <g fontFamily="Barlow Semi Condensed" fontWeight="700" fontSize="12" textAnchor="middle">
-          <circle cx="142" cy="18" r="9" fill="#fffdf8" stroke="#c23b25" strokeWidth="1.8" />
-          <text x="142" y="19" dominantBaseline="middle" fill="#c23b25">1</text>
-          <circle cx="302" cy="18" r="9" fill="#fffdf8" stroke="#c23b25" strokeWidth="1.8" />
-          <text x="302" y="19" dominantBaseline="middle" fill="#c23b25">2</text>
-        </g>
-      </svg>
-      <p className="max-w-md text-[15px] leading-7 text-ink-2">
-        Each answer cites the files it was written from, <span className="marker">marked</span>, so you can open them and check.
-      </p>
+    <aside className="relative hidden overflow-hidden bg-night lg:block" aria-hidden="true">
+      <div className="gradient-band absolute inset-0 opacity-90" style={{ clipPath: 'polygon(58% 0, 100% 0, 100% 100%, 30% 100%)' }} />
+      <div className="relative flex h-full flex-col justify-center gap-8 px-14">
+        <p className="max-w-md text-[2rem] font-[760] leading-[1.1] tracking-[-0.03em] text-white" style={{ fontStretch: '110%' }}>
+          Answers with the exact files and lines they came from.
+        </p>
+        <div className="pop max-w-md rounded-xl bg-white p-4 text-sm text-ink shadow-[0_40px_80px_-30px_rgb(3_10_30/0.7)]" style={{ '--d': '0.2s' }}>
+          <p className="flex items-center gap-2.5 font-semibold">
+            <span className="h-5 w-5 shrink-0 rounded-full bg-[conic-gradient(#5b4cf5_0_30%,#22c7e8_0_60%,#ff6a55_0)]" />
+            Which model answers questions?
+          </p>
+          <p className="mt-2.5 leading-6 text-[#2f363d]">
+            <code className="rounded bg-[rgb(175_184_193/0.2)] px-1 font-mono text-[12px]">openai/gpt-oss-120b</code> on Groq,
+            unless <code className="rounded bg-[rgb(175_184_193/0.2)] px-1 font-mono text-[12px]">GROQ_MODEL</code> is set.
+          </p>
+          <p className="mt-2.5">
+            <span className="file-pill">server/config/llm.js#L5</span>
+          </p>
+        </div>
+      </div>
     </aside>
   );
 }

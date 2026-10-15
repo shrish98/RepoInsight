@@ -29,7 +29,12 @@ const repoSummarySchema = new mongoose.Schema({
     {
       type: String
     }
-  ]
-}, { timestamps: true });
+  ],
+  // Bytes of code per language, straight from GitHub's languages API, e.g. { JavaScript: 130147 }.
+  languages: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
+  }
+}, { timestamps: true, minimize: false });
 
 export const RepoSummary = mongoose.model('RepoSummary', repoSummarySchema);

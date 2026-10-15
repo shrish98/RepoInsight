@@ -1,7 +1,9 @@
 import { createChatModel } from '../config/llm.js';
-import { fetchRepoTree, fetchFileContent } from './githubService.js';
+import { fetchRepoTree, fetchFileContent, fetchRepoLanguages } from './githubService.js';
 import { RepoSummary } from '../models/RepoSummary.js';
 import { normalizeRepoUrl } from '../utils/urlHelper.js';
+
+const ownerAndRepo = (repoUrl) => repoUrl.replace('https://github.com/', '').split('/');
 
 export const getOrGenerateSummary = async (rawRepoUrl) => {
     const repoUrl = normalizeRepoUrl(rawRepoUrl);
@@ -10,11 +12,22 @@ export const getOrGenerateSummary = async (rawRepoUrl) => {
     try {
         let existingSummary = await RepoSummary.findOne({ repoUrl });
         if (existingSummary && existingSummary.techStack && existingSummary.techStack.length > 0) {
+            // Summaries saved before the language breakdown existed get it filled in once.
+            if (!existingSummary.languages || Object.keys(existingSummary.languages).length === 0) {
+                const [owner, repo] = ownerAndRepo(repoUrl);
+                const languages = await fetchRepoLanguages(owner, repo);
+                if (Object.keys(languages).length > 0) {
+                    existingSummary.languages = languages;
+                    existingSummary.markModified('languages');
+                    await existingSummary.save();
+                }
+            }
             return existingSummary;
         }
 
         const repoData = await fetchRepoTree(repoUrl);
         const { owner, repo, branch, files } = repoData;
+        const languages = await fetchRepoLanguages(owner, repo);
 
         const filePaths = files.map(f => f.path);
         
@@ -88,7 +101,8 @@ Output ONLY raw valid JSON without markdown wrapping or code blocks.`;
                 techStack: parsedData.techStack || [],
                 entryPoints: parsedData.entryPoints || [],
                 architectureDiagram: parsedData.architectureDiagram || '',
-                suggestedQuestions: parsedData.suggestedQuestions || []
+                suggestedQuestions: parsedData.suggestedQuestions || [],
+                languages
             },
             { upsert: true, new: true }
         );

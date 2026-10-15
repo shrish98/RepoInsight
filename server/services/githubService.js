@@ -73,6 +73,19 @@ export const fetchRepoTree = async (rawRepoUrl) => {
     }
 };
 
+// Bytes of code per language, as shown in the bar on a GitHub repo page. Optional: returns {} on any failure.
+export const fetchRepoLanguages = async (owner, repo) => {
+    try {
+        const response = await safeFetchGithub(`https://api.github.com/repos/${owner}/${repo}/languages`);
+        if (!response.ok) return {};
+        const data = await response.json();
+        return data && typeof data === 'object' && !Array.isArray(data) ? data : {};
+    } catch (error) {
+        console.warn(`Couldn't fetch languages for ${owner}/${repo}:`, error.message);
+        return {};
+    }
+};
+
 export const fetchFileContent = async (owner, repo, branch, filePath) => {
     const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
     

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import mermaid from 'mermaid';
 import { Maximize2, X } from 'lucide-react';
+import { layerOf, LAYER_STYLES } from '../utils/layers';
 
 mermaid.initialize({
   startOnLoad: false,
@@ -9,17 +10,40 @@ mermaid.initialize({
   securityLevel: 'strict',
   theme: 'base',
   themeVariables: {
-    fontFamily: '"IBM Plex Sans", ui-sans-serif, sans-serif',
+    fontFamily: '"Barlow", ui-sans-serif, sans-serif',
     fontSize: '14px',
-    primaryColor: '#ffffff',
-    primaryTextColor: '#17181b',
-    primaryBorderColor: '#17181b',
-    lineColor: '#6b6f78',
-    secondaryColor: '#f5f5f2',
-    tertiaryColor: '#eef1fb',
-    edgeLabelBackground: '#ffffff',
+    primaryColor: '#fffdf8',
+    primaryTextColor: '#1f2752',
+    primaryBorderColor: '#3b4fa0',
+    lineColor: '#3b4fa0',
+    secondaryColor: '#f6f3ea',
+    tertiaryColor: '#e6e9f6',
+    edgeLabelBackground: '#fbfaf4',
   },
+  themeCSS: `
+    .node rect, .node polygon { rx: 8px; ry: 8px; }
+    .nodeLabel { font-weight: 600; }
+    .edgeLabel { font-family: "Overpass Mono", monospace; font-size: 11px; color: #4a5280; }
+  `,
 });
+
+// Give each box the tint of the layer its label names (frontend, API, jobs, services, data),
+// matching the stack chips. Boxes that don't match anything keep the plain style.
+const NODE_DEF = /\b([A-Za-z_]\w*)\s*(?:\[\[|\[\(|\(\(|\(\[|\[|\(|\{\{|\{)\s*"?([^"[\](){}\n|]+)/g;
+
+function tintByLayer(chart) {
+  if (!/^(graph|flowchart)\b/.test(chart)) return chart;
+  const byLayer = {};
+  for (const [, id, label] of chart.matchAll(NODE_DEF)) {
+    const layer = layerOf(label);
+    if (layer !== 'none') (byLayer[layer] ??= new Set()).add(id);
+  }
+  const lines = Object.entries(byLayer).flatMap(([layer, ids]) => [
+    `  classDef layer_${layer} ${LAYER_STYLES[layer]}`,
+    `  class ${[...ids].join(',')} layer_${layer}`,
+  ]);
+  return lines.length ? `${chart}\n${lines.join('\n')}` : chart;
+}
 
 const sanitizeMermaidChart = (chartText) => {
   if (!chartText || typeof chartText !== 'string') return '';
@@ -38,17 +62,19 @@ const sanitizeMermaidChart = (chartText) => {
   clean = clean.replace(/\|([^|\n]*)\|>/g, '|$1|');
 
   // Quote bare labels; the model sometimes puts parentheses or slashes in them, which breaks parsing.
-  return clean.replace(/([A-Za-z0-9_]+)\[([^"\n]+?)\]/g, (match, nodeId, label) => {
+  clean = clean.replace(/([A-Za-z0-9_]+)\[([^"\n]+?)\]/g, (match, nodeId, label) => {
     if (label.startsWith('"') && label.endsWith('"')) return match;
     return `${nodeId}["${label.replace(/"/g, "'")}"]`;
   });
+
+  return tintByLayer(clean);
 };
 
-const FALLBACK_DIAGRAM = `graph TD
+const FALLBACK_DIAGRAM = tintByLayer(`graph TD
   Client["User interface"] --> Router["Routing and middleware"]
   Router --> Auth["Auth"]
   Router --> Services["Core services"]
-  Services --> DB[("Database and external APIs")]`;
+  Services --> DB[("Database and external APIs")]`);
 
 // Mermaid breaks when two renders overlap (e.g. the inline and full-screen copies, or React
 // StrictMode running effects twice), so every render goes through one queue with a unique id.
@@ -88,15 +114,15 @@ export default function MermaidDiagram({ chart }) {
 
   return (
     <>
-      <div className="relative rounded-md border border-line bg-surface">
+      <div className="gridpaper relative overflow-hidden rounded-lg border-[1.5px] border-accent">
         <button
           type="button"
           onClick={() => setIsFullscreen(true)}
-          className="absolute right-2 top-2 z-10 flex items-center gap-1.5 rounded border border-line bg-surface px-2 py-1 text-xs text-ink-2 hover:text-ink"
+          className="absolute right-2 top-2 z-10 flex items-center gap-1.5 rounded-md border-[1.5px] border-accent-soft bg-surface px-2 py-1 text-xs font-semibold text-accent hover:border-accent"
         >
           <Maximize2 className="h-3.5 w-3.5" /> Expand
         </button>
-        <div className="max-h-[320px] overflow-auto p-4 pt-10">
+        <div className="max-h-[340px] overflow-auto p-4 pt-10">
           <div ref={inlineRef} className="flex justify-center [&>svg]:h-auto [&>svg]:max-w-full" />
         </div>
       </div>
@@ -105,12 +131,12 @@ export default function MermaidDiagram({ chart }) {
         createPortal(
           <div className="fixed inset-0 z-50 flex flex-col bg-page" role="dialog" aria-modal="true" aria-label="Architecture diagram">
             <div className="flex h-14 shrink-0 items-center justify-between border-b border-line bg-surface px-5">
-              <p className="font-medium">Architecture</p>
+              <p className="font-display text-lg font-bold">Architecture</p>
               <button type="button" onClick={() => setIsFullscreen(false)} className="btn-secondary px-3 py-1.5" autoFocus>
                 <X className="h-4 w-4" /> Close
               </button>
             </div>
-            <div className="flex-1 overflow-auto p-6">
+            <div className="gridpaper flex-1 overflow-auto p-6">
               <div ref={modalRef} className="flex min-h-full items-center justify-center [&>svg]:h-auto [&>svg]:max-w-full" />
             </div>
           </div>,

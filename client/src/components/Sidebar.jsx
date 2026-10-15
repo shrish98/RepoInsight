@@ -1,8 +1,24 @@
 import { Plus, Trash2, X } from 'lucide-react';
 import Wordmark from './Wordmark';
 import { repoName } from '../utils/repo';
+import { layerForKey } from '../utils/layers';
 
 const formatDate = (iso) => new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+
+// First letter of the repo (not the owner), tinted so each repository is easy to spot again.
+function RepoInitial({ url }) {
+  const name = repoName(url);
+  const repo = name.split('/')[1] || name;
+  return (
+    <span
+      aria-hidden="true"
+      className={`tint-${layerForKey(name)} grid h-7 w-7 shrink-0 place-items-center rounded-md border-[1.5px] font-display text-sm font-bold uppercase`}
+      style={{ background: 'var(--tint-fill)', borderColor: 'var(--tint-edge)', color: 'var(--tint-ink)' }}
+    >
+      {repo.charAt(0)}
+    </span>
+  );
+}
 
 export default function Sidebar({
   open,
@@ -43,7 +59,7 @@ export default function Sidebar({
 
         <div className="p-3">
           <button type="button" onClick={choose(onNew)} className="btn-secondary w-full justify-start px-3">
-            <Plus className="h-4 w-4" /> New analysis
+            <Plus className="h-4 w-4 text-accent" strokeWidth={2.4} /> New analysis
           </button>
         </div>
 
@@ -60,10 +76,17 @@ export default function Sidebar({
                     type="button"
                     onClick={choose(() => loadSession(session.repoUrl))}
                     aria-current={active ? 'true' : undefined}
-                    className={`w-full rounded-md py-2 pl-2.5 pr-9 text-left ${active ? 'bg-sunken' : 'hover:bg-sunken/60'}`}
+                    className={`flex w-full items-center gap-2.5 rounded-lg py-2 pl-2 pr-9 text-left ${
+                      active
+                        ? 'bg-[linear-gradient(transparent_8%,rgb(247_221_74/0.5)_8%_92%,transparent_92%)]'
+                        : 'hover:bg-sunken'
+                    }`}
                   >
-                    <span className="block truncate font-mono text-[13px]">{repoName(session.repoUrl)}</span>
-                    <span className="block text-xs text-ink-3">{formatDate(session.updatedAt)}</span>
+                    <RepoInitial url={session.repoUrl} />
+                    <span className="min-w-0">
+                      <span className="block truncate font-mono text-[13px] text-ink">{repoName(session.repoUrl)}</span>
+                      <span className="block text-xs text-ink-3">{formatDate(session.updatedAt)}</span>
+                    </span>
                   </button>
                   <button
                     type="button"
@@ -81,14 +104,18 @@ export default function Sidebar({
 
         <div className="flex items-center justify-between gap-3 border-t border-line px-4 py-3">
           <span className="flex min-w-0 items-center gap-2.5">
-            {user?.avatarUrl && (
-              <img src={user.avatarUrl} alt="" width="24" height="24" className="h-6 w-6 shrink-0 rounded-full border border-line" />
+            {user?.avatarUrl ? (
+              <img src={user.avatarUrl} alt="" width="28" height="28" className="h-7 w-7 shrink-0 rounded-full border-[1.5px] border-line-strong" />
+            ) : (
+              <span aria-hidden className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent-soft font-display text-sm font-bold uppercase text-accent">
+                {(user?.githubLogin ?? user?.email ?? '?').charAt(0)}
+              </span>
             )}
-            <span className="truncate text-sm text-ink-2" title={user?.email}>
+            <span className="truncate text-sm font-medium text-ink-2" title={user?.email}>
               {user?.githubLogin ?? user?.email ?? 'Signed in'}
             </span>
           </span>
-          <button type="button" onClick={logout} className="shrink-0 text-sm text-ink-2 hover:text-ink">
+          <button type="button" onClick={logout} className="shrink-0 text-sm text-ink-3 hover:text-ink">
             Sign out
           </button>
         </div>

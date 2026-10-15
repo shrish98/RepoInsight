@@ -1,7 +1,7 @@
 import { useElapsed } from '../hooks/useElapsed';
 import { repoName } from '../utils/repo';
 
-export default function RepoBar({ repoUrl, setRepoUrl, handleAnalyze, isAnalyzing, analysisStatus, inputRef }) {
+export default function RepoBar({ repoUrl, setRepoUrl, handleAnalyze, isAnalyzing, analysisStatus, isReady, inputRef }) {
   const elapsed = useElapsed(isAnalyzing);
 
   return (
@@ -40,6 +40,16 @@ export default function RepoBar({ repoUrl, setRepoUrl, handleAnalyze, isAnalyzin
       {analysisStatus?.type === 'error' && (
         <p className="mx-auto mt-2 max-w-3xl text-sm text-danger" role="alert">
           {analysisStatus.msg}
+        </p>
+      )}
+      {!analysisStatus && isReady && (
+        <p className="mx-auto mt-2 flex max-w-3xl items-center gap-2 text-sm text-ink-2">
+          <span className="inline-flex items-center gap-1.5 font-semibold text-ok">
+            <span aria-hidden className="h-2 w-2 rounded-full bg-ok shadow-[0_0_0_3px_rgb(47_138_91/0.18)]" />
+            Indexed
+          </span>
+          <span className="text-ink-3">·</span>
+          ready for questions
         </p>
       )}
     </div>

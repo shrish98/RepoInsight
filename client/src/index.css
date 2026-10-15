@@ -1,22 +1,29 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Barlow Semi Condensed", "Barlow", ui-sans-serif, sans-serif;
+  --font-mono: "Overpass Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --color-page: #f5f5f2;
-  --color-surface: #ffffff;
-  --color-sunken: #efefeb;
-  --color-ink: #17181b;
-  --color-ink-2: #4e525a;
-  --color-ink-3: #6b6f78;
-  --color-line: #e3e3de;
-  --color-line-strong: #cbcbc4;
-  --color-accent: #2347c5;
-  --color-accent-soft: #eef1fb;
-  --color-danger: #b42318;
-  --color-danger-soft: #fdf1ef;
-  --color-ok: #1e7a46;
+  /* Paper and ink */
+  --color-page: #f6f3ea;
+  --color-surface: #fffdf8;
+  --color-sunken: #efebdf;
+  --color-ink: #1f2752;
+  --color-ink-2: #4a5280;
+  --color-ink-3: #666c93;
+  --color-line: #e3ddcd;
+  --color-line-strong: #cfc8b6;
+
+  /* Blue ink for structure, highlighter for "look here", red pen for steps and warnings */
+  --color-accent: #3b4fa0;
+  --color-accent-strong: #2f4188;
+  --color-accent-soft: #e6e9f6;
+  --color-highlight: #f7dd4a;
+  --color-pen: #c23b25;
+  --color-danger: #b8361f;
+  --color-danger-soft: #fff4f0;
+  --color-ok: #2f8a5b;
 }
 
 @layer base {
@@ -27,7 +34,7 @@
     @apply bg-page text-ink font-sans antialiased;
   }
   ::selection {
-    background: #dfe5fa;
+    background: rgb(247 221 74 / 0.6);
   }
   :focus-visible {
     outline: 2px solid var(--color-accent);
@@ -37,28 +44,66 @@
 
 @layer components {
   .eyebrow {
-    @apply font-mono text-[11px] uppercase tracking-[0.08em] text-ink-3;
+    @apply font-mono text-xs text-ink-3;
   }
   /* Tailwind 4 can't @apply one custom class inside another, so the shared button base is repeated. */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
-    @apply bg-ink text-white hover:bg-[#2c2e33];
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-transparent px-4 py-2 text-[15px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    @apply bg-accent text-white shadow-[0_1px_0_var(--color-accent-strong)] hover:bg-accent-strong;
+  }
+  .btn-dark {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-transparent px-4 py-2 text-[15px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    @apply bg-ink text-white hover:bg-[#151b3d];
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
-    @apply border border-line-strong bg-surface text-ink hover:border-ink-3;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-[15px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    @apply border-line-strong bg-surface text-ink hover:border-accent hover:text-accent;
   }
   .field {
-    @apply w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-[15px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/15;
+    @apply w-full rounded-lg border border-line-strong bg-white px-3 py-2 text-[15px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/15;
   }
   .spinner {
-    @apply inline-block h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-line-strong border-t-ink;
+    @apply inline-block h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-accent-soft border-t-accent;
+  }
+
+  /* Drafting-paper grid, used only behind drawings. */
+  .gridpaper {
+    background-color: #fbfaf4;
+    background-image:
+      linear-gradient(rgb(59 79 160 / 0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(59 79 160 / 0.07) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  /* A highlighter stroke behind text. */
+  .marker {
+    background: linear-gradient(transparent 56%, var(--color-highlight) 56% 92%, transparent 92%);
+  }
+
+  /* Red-pen step number. */
+  .pen-num {
+    @apply inline-grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 border-pen bg-surface font-display text-[13px] font-bold text-pen;
+    transform: rotate(-4deg);
+  }
+
+  /* One tint per layer of a codebase. Used by stack chips, diagrams and repo icons. */
+  .tint-frontend { --tint-fill: #e4ecfc; --tint-line: #3b6fd4; --tint-ink: #24468f; --tint-edge: #c3d4f6; }
+  .tint-api      { --tint-fill: #ddf2e5; --tint-line: #2f8a5b; --tint-ink: #1f5e3d; --tint-edge: #b9e2c8; }
+  .tint-jobs     { --tint-fill: #fff0c7; --tint-line: #c98a06; --tint-ink: #7a5400; --tint-edge: #f2d886; }
+  .tint-services { --tint-fill: #fde2d8; --tint-line: #d2603a; --tint-ink: #8a3517; --tint-edge: #f5c3b0; }
+  .tint-data     { --tint-fill: #ece5f8; --tint-line: #7356b8; --tint-ink: #4b3592; --tint-edge: #d3c6ef; }
+  .tint-none     { --tint-fill: #fffdf8; --tint-line: #3b4fa0; --tint-ink: #1f2752; --tint-edge: #cfc8b6; }
+  .chip {
+    @apply inline-flex items-center rounded-md border-[1.5px] px-2 py-0.5 text-[13px] font-semibold;
+    background: var(--tint-fill);
+    border-color: var(--tint-edge);
+    color: var(--tint-ink);
   }
 }
 
 /* Answers rendered from markdown */
 .prose-answer {
-  @apply text-[15px] leading-7 text-ink;
+  @apply text-[15.5px] leading-7 text-ink;
 }
 .prose-answer > * + * {
   @apply mt-4;
@@ -67,32 +112,51 @@
 .prose-answer h2,
 .prose-answer h3,
 .prose-answer h4 {
-  @apply mt-6 font-semibold tracking-tight text-ink;
+  @apply mt-6 font-display font-bold tracking-[-0.005em] text-ink;
 }
-.prose-answer h1 { @apply text-xl; }
-.prose-answer h2 { @apply text-lg; }
+.prose-answer h1 { @apply text-[22px]; }
+.prose-answer h2 { @apply text-xl; }
 .prose-answer h3,
-.prose-answer h4 { @apply text-base; }
+.prose-answer h4 { @apply text-[17px]; }
 .prose-answer a {
   @apply text-accent underline decoration-accent/30 underline-offset-2 hover:decoration-accent;
 }
 .prose-answer ul { @apply list-disc pl-5; }
-.prose-answer ol { @apply list-decimal pl-5; }
-.prose-answer li + li { @apply mt-1; }
+.prose-answer ul > li::marker { color: var(--color-pen); }
+/* Numbered steps get a red-pen circle instead of a plain digit. */
+.prose-answer ol {
+  counter-reset: step;
+  @apply list-none pl-0;
+}
+.prose-answer ol > li {
+  counter-increment: step;
+  @apply relative pl-9;
+}
+.prose-answer ol > li::before {
+  content: counter(step);
+  @apply absolute left-0 top-0.5 grid h-6 w-6 place-items-center rounded-full border-2 border-pen bg-surface font-display text-[13px] font-bold leading-none text-pen;
+  transform: rotate(-4deg);
+}
+.prose-answer li + li { @apply mt-2; }
 .prose-answer strong { @apply font-semibold; }
 .prose-answer code:not(pre code) {
-  @apply rounded bg-sunken px-1.5 py-0.5 font-mono text-[13px] text-ink;
+  @apply rounded bg-accent-soft px-1.5 py-0.5 font-mono text-[13px] text-accent-strong;
   /* Long file paths would otherwise push past the edge on phones. */
   overflow-wrap: anywhere;
 }
+/* Inline code that names a file gets a light highlighter stroke instead. */
+.prose-answer code.file-ref {
+  @apply rounded-sm bg-transparent px-1 text-ink;
+  background-image: linear-gradient(transparent 10%, rgb(247 221 74 / 0.5) 10% 90%, transparent 90%);
+}
 .prose-answer pre {
-  @apply overflow-x-auto rounded-md border border-line bg-[#fafaf8] p-4 font-mono text-[13px] leading-6;
+  @apply overflow-x-auto rounded-lg border-[1.5px] border-line-strong bg-[#fbfaf4] p-4 font-mono text-[13px] leading-6;
 }
 .prose-answer pre code.hljs {
   @apply bg-transparent p-0;
 }
 .prose-answer blockquote {
-  @apply border-l-2 border-line-strong pl-4 text-ink-2;
+  @apply rounded-r-md border-l-[3px] border-pen bg-danger-soft py-2 pl-4 pr-3 text-ink-2;
 }
 .prose-answer table {
   @apply block w-full overflow-x-auto border-collapse text-sm;
@@ -102,14 +166,46 @@
   @apply border border-line px-3 py-1.5 text-left align-top;
 }
 .prose-answer th {
-  @apply bg-sunken font-medium;
+  @apply bg-sunken font-semibold;
 }
 .prose-answer hr {
   @apply border-line;
 }
 
+/* Syntax colours, matched to the layer tints. */
+.hljs { color: var(--color-ink); }
+.hljs-comment, .hljs-quote { color: var(--color-ink-3); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-built_in { color: #8b3c9e; }
+.hljs-title, .hljs-title.function_, .hljs-section, .hljs-name { color: #3b6fd4; }
+.hljs-string, .hljs-regexp, .hljs-template-string, .hljs-addition { color: #2f7a4f; }
+.hljs-number, .hljs-symbol, .hljs-bullet, .hljs-deletion { color: #c4532c; }
+.hljs-attr, .hljs-attribute, .hljs-property, .hljs-variable, .hljs-params { color: #1f2752; }
+.hljs-type, .hljs-title.class_, .hljs-tag { color: #7356b8; }
+.hljs-meta { color: #a87300; }
+
+/* The landing-page drawing draws itself in once. */
+@keyframes draw-line { to { stroke-dashoffset: 0; } }
+@keyframes appear { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.draw-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw-line 0.5s ease-out forwards;
+  animation-delay: var(--d, 0s);
+}
+.draw-in {
+  opacity: 0;
+  animation: appear 0.4s ease-out forwards;
+  animation-delay: var(--d, 0s);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .spinner {
     animation-duration: 2.5s;
+  }
+  .draw-line,
+  .draw-in {
+    animation: none;
+    opacity: 1;
+    stroke-dashoffset: 0;
   }
 }

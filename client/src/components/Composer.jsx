@@ -33,7 +33,7 @@ export default function Composer({ handleAskQuestion, question, setQuestion, isA
                 type="button"
                 onClick={() => handleAskQuestion(null, q)}
                 disabled={disabled}
-                className="shrink-0 rounded-full border border-line-strong bg-surface px-3 py-1 text-[13px] text-ink-2 hover:border-ink-3 hover:text-ink disabled:opacity-50"
+                className="shrink-0 rounded-full border-[1.5px] border-line-strong bg-surface px-3 py-1 text-[13.5px] text-ink-2 hover:border-accent hover:text-accent disabled:opacity-50"
               >
                 {q}
               </button>
@@ -41,7 +41,7 @@ export default function Composer({ handleAskQuestion, question, setQuestion, isA
           </div>
         )}
 
-        <div className="flex items-end gap-1.5 rounded-lg border border-line-strong bg-surface p-1.5 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15">
+        <div className="flex items-end gap-1.5 rounded-xl border-[1.5px] border-line-strong bg-white p-1.5 shadow-[0_8px_20px_-16px_rgb(31_39_82/0.5)] focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15">
           <label htmlFor="question" className="sr-only">
             Your question
           </label>

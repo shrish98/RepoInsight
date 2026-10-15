@@ -14,7 +14,7 @@ const cleanMarkdownForTTS = (text) => {
     .trim();
 };
 
-const iconButton = 'flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors disabled:opacity-40';
+const iconButton = 'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors disabled:opacity-40';
 
 export default function VoiceChatControls({ setQuestion, isAsking, isReady, latestAgentMessage }) {
   const [isListening, setIsListening] = useState(false);

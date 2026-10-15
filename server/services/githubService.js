@@ -1,5 +1,8 @@
 import { normalizeRepoUrl } from '../utils/urlHelper.js';
 
+// Errors whose message is safe and useful to show the user (the controller checks `expose`).
+const userFacingError = (message) => Object.assign(new Error(message), { expose: true });
+
 const safeFetchGithub = async (url) => {
     const token = process.env.GITHUB_TOKEN?.trim();
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
@@ -22,7 +25,7 @@ export const fetchRepoTree = async (rawRepoUrl) => {
     const repo = urlParts[1];
 
     if (!owner || !repo) {
-        throw new Error("Invalid GitHub URL provided.");
+        throw userFacingError("Invalid GitHub URL provided.");
     }
 
     try {
@@ -31,7 +34,7 @@ export const fetchRepoTree = async (rawRepoUrl) => {
         const infoData = await infoResponse.json();
         
         if (!infoResponse.ok) {
-            throw new Error(infoData.message || 'Failed to fetch repository information.');
+            throw userFacingError(`GitHub: ${infoData.message || "couldn't fetch repository information."}`);
         }
         
         const branch = infoData.default_branch || 'main';
@@ -41,7 +44,7 @@ export const fetchRepoTree = async (rawRepoUrl) => {
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.message || `Failed to fetch repository tree for branch "${branch}".`);
+            throw userFacingError(`GitHub: ${data.message || `couldn't read the "${branch}" branch.`}`);
         }
 
         const ignoredExtensions = [

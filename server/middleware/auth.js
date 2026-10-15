@@ -1,19 +1,16 @@
-import jwt from 'jsonwebtoken';
+import { verifyToken } from '../config/auth.js';
 
 export const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
-  
+
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'No token provided. Authorization denied.' });
   }
 
-  const token = authHeader.split(' ')[1];
-
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret_for_dev');
-    req.user = decoded; // { userId }
+    req.user = verifyToken(authHeader.slice('Bearer '.length)); // { userId }
     next();
-  } catch (error) {
+  } catch {
     res.status(401).json({ error: 'Invalid or expired token.' });
   }
 };

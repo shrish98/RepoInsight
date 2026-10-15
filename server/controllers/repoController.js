@@ -32,7 +32,10 @@ export const analyzeRepo = async (req, res) => {
     });
   } catch (error) {
     console.error("Analysis Error:", error);
-    res.status(500).json({ error: error.message || "Failed to analyze repository." });
+    // Only errors marked `expose` (e.g. GitHub's "Not Found") are meant for users; the rest stay in the logs.
+    res.status(error.expose ? 400 : 500).json({
+      error: error.expose ? error.message : "The repository couldn't be indexed. Please try again."
+    });
   }
 };
 
@@ -77,6 +80,6 @@ export const chatRepo = async (req, res) => {
     res.json({ answer });
   } catch (error) {
     console.error("Chat Error:", error);
-    res.status(500).json({ error: "Failed to generate an answer. " + error.message });
+    res.status(500).json({ error: "Couldn't generate an answer right now. Please try again." });
   }
 };

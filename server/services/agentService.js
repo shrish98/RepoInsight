@@ -7,7 +7,7 @@ import { tool } from "@langchain/core/tools";
 import { SystemMessage, HumanMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import { searchGithubIssues } from "./githubService.js";
-import { normalizeRepoUrl } from "../utils/urlHelper.js";
+import { normalizeRepoUrl, escapeRegExp } from "../utils/urlHelper.js";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 
 const githubIssuesTool = tool(async ({ query }, config) => {
@@ -80,10 +80,11 @@ const retrieveNode = async (state) => {
         try {
             const client = mongoose.connection.getClient();
             const collection = client.db("repoinsight").collection("code_chunks");
-            const repoRegex = new RegExp(repoPathPart || cleanRepoUrl, "i");
-            
-            const keywords = activeQuery.split(/\s+/).filter(w => w.length > 2);
-            const regexPattern = keywords.join("|");
+            // Both patterns come from user input, so escape them before they reach $regex.
+            const repoRegex = new RegExp(escapeRegExp(repoPathPart || cleanRepoUrl), "i");
+
+            const keywords = activeQuery.split(/\s+/).filter(w => w.length > 2).slice(0, 20);
+            const regexPattern = keywords.map(escapeRegExp).join("|");
             
             if (regexPattern) {
                 const rawMongoDocs = await collection.find({
